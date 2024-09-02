@@ -20,5 +20,15 @@
   "table.retryMode": "Retry Mode",
   "table.queueCount": "Queue Count",
   "button.edit": "Edit",
-  "button.delete": "Delete"
+  "button.delete": "Delete",
+  "form.submit": "Submit",
+  "modal.addConsumer": "Add Consumer",
+  "placeholder.hours": "Hours",
+  "placeholder.minutes": "Minutes",
+  "placeholder.seconds": "Seconds",
+  "validation.name": "Please enter the name",
+  "validation.queueName": "Please enter the queue name",
+  "validation.exchangeName": "Please enter the exchange name",
+  "validation.routingKey": "Please enter the routing key",
+  "validation.callback": "Please enter the callback URL"
 }

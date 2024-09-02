@@ -16,13 +16,11 @@ import (
 var ()
 
 type RabbitMQConfig struct {
-	Host      string `json:"HOSTNAME"`
-	Port      int    `json:"PORT"` // Added Port field
-	User      string `json:"USERNAME"`
-	Password  string `json:"PASSWORD"`
-	Heartbeat uint64 `json:"HEARTBEAT"`
-	FrameSize int    `json:"FRAMEMAX"`
-	Vhost     string `json:"VHOST"`
+	Host     string `json:"HOSTNAME"`
+	Port     int    `json:"PORT"` // Added Port field
+	User     string `json:"USERNAME"`
+	Password string `json:"PASSWORD"`
+	Vhost    string `json:"VHOST"`
 }
 
 type DeathQueueInfo struct {
@@ -130,9 +128,7 @@ func (mq *RabbitMQServer) Connect() bool {
 	mq.StopCtx, mq.Stop = context.WithCancel(context.Background())
 
 	mq.Connnection, err = amqp.DialConfig(fmt.Sprintf("amqp://%s:%s@%s:%d", mq.ServerConfig.User, mq.ServerConfig.Password, mq.ServerConfig.Host, mq.ServerConfig.Port), amqp.Config{
-		Vhost:     mq.ServerConfig.Vhost,
-		FrameSize: mq.ServerConfig.FrameSize,
-		Heartbeat: time.Duration(mq.ServerConfig.Heartbeat),
+		Vhost: mq.ServerConfig.Vhost,
 	})
 
 	if err != nil {

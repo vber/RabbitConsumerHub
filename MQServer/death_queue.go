@@ -40,9 +40,7 @@ func CreateDeathQueue(config *RabbitMQConfig, v map[string]interface{}) (e error
 	bind_routing_key = v["bind_routing_key"].(string)
 
 	if conn, err = amqp.DialConfig(fmt.Sprintf("amqp://%s:%s@%s:5672", config.User, config.Password, config.Host), amqp.Config{
-		Vhost:     config.Vhost,
-		FrameSize: config.FrameSize,
-		Heartbeat: time.Duration(config.Heartbeat),
+		Vhost: config.Vhost,
 	}); err != nil {
 		return err
 	}

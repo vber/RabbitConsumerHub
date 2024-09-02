@@ -159,3 +159,19 @@ func FetchRetryServiceURL(db *sql.DB) (string, error) {
 
 	return retryServiceURL, nil
 }
+
+func UpdateRabbitMQConfig(db *sql.DB, config MQServer.RabbitMQConfig) error {
+	const FUNCNAME = "UpdateRabbitMQConfig"
+
+	// Log the values of Host and User before updating
+	logger.I(FUNCNAME, fmt.Sprintf("Updating RabbitMQ config: Host=%s, User=%s", config.Host, config.User))
+
+	_, err := db.Exec(`UPDATE rabbitmq_config SET host = ?, port = ?, vhost = ?, user = ?, password = ? WHERE id = 1`,
+		config.Host, config.Port, config.Vhost, config.User, config.Password)
+	if err != nil {
+		logger.E(FUNCNAME, "failed to update RabbitMQ configuration.", err.Error())
+		return err
+	}
+
+	return nil
+}

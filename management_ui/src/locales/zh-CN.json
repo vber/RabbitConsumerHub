@@ -20,5 +20,15 @@
   "table.retryMode": "重试模式",
   "table.queueCount": "队列数量",
   "button.edit": "编辑",
-  "button.delete": "删除"
+  "button.delete": "删除",
+  "form.submit": "提交",
+  "modal.addConsumer":"添加消费者",
+  "placeholder.hours": "小时",
+  "placeholder.minutes": "分钟",
+  "placeholder.seconds": "秒",
+  "validation.name": "请输入名称",
+  "validation.queueName": "请输入队列名称",
+  "validation.exchangeName": "请输入交换机名称",
+  "validation.routingKey": "请输入路由键",
+  "validation.callback": "请输入回调地址"
 }

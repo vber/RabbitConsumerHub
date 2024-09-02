@@ -13,14 +13,33 @@ import (
 func UpdateRabbitMQConfig(database *sql.DB, config *MQServer.RabbitMQConfig) error {
 	const FUNCNAME = "UpdateRabbitMQConfig"
 
-	_, err := database.Exec(`UPDATE rabbitmq_config SET host = ?, port = ?, user = ?, password = ? WHERE id = 1`,
-		config.Host, config.Port, config.User, config.Password)
+	_, err := database.Exec(`UPDATE rabbitmq_config SET host = ?, port = ?, user = ?, password = ?, vhost = ? WHERE id = 1`,
+		config.Host, config.Port, config.User, config.Password, config.Vhost)
 	if err != nil {
 		logger.E(FUNCNAME, "failed to update RabbitMQ configuration.", err.Error())
 		return err
 	}
 
 	return nil
+}
+
+// FetchRabbitMQConfig fetches the RabbitMQ server configuration from the database
+func FetchRabbitMQConfig(database *sql.DB) (*MQServer.RabbitMQConfig, error) {
+	const FUNCNAME = "FetchRabbitMQConfig"
+
+	row := database.QueryRow("SELECT host, port, user, password, vhost FROM rabbitmq_config WHERE id = 1")
+	var config MQServer.RabbitMQConfig
+	err := row.Scan(&config.Host, &config.Port, &config.User, &config.Password, &config.Vhost)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			logger.E(FUNCNAME, "no RabbitMQ configuration found.")
+			return nil, fiber.NewError(fiber.StatusNotFound, "no RabbitMQ configuration found")
+		}
+		logger.E(FUNCNAME, "failed to query RabbitMQ configuration from SQLite database.", err.Error())
+		return nil, err
+	}
+
+	return &config, nil
 }
 
 // AddConsumer adds a new consumer to the database
@@ -100,12 +119,33 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
-	app.Put("/rabbitmq/config", func(c *fiber.Ctx) error {
-		var config MQServer.RabbitMQConfig
+	app.Get("/rabbitmq-config", func(c *fiber.Ctx) error {
+		config, err := FetchRabbitMQConfig(db)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(config)
+	})
+
+	app.Put("/rabbitmq-config", func(c *fiber.Ctx) error {
+		var config struct {
+			Host     string `json:"host"`
+			Port     int    `json:"port"`
+			User     string `json:"user"`
+			Password string `json:"password"`
+			Vhost    string `json:"vhost"`
+		}
 		if err := c.BodyParser(&config); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 		}
-		if err := UpdateRabbitMQConfig(db, &config); err != nil {
+		rabbitMQConfig := MQServer.RabbitMQConfig{
+			Host:     config.Host,
+			Port:     config.Port,
+			User:     config.User,
+			Password: config.Password,
+			Vhost:    config.Vhost,
+		}
+		if err := UpdateRabbitMQConfig(db, &rabbitMQConfig); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 		return c.JSON(fiber.Map{"message": "RabbitMQ configuration updated successfully"})
@@ -114,22 +154,44 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 	app.Get("/consumers", func(c *fiber.Ctx) error {
 		rows, err := db.Query("SELECT * FROM consumers")
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+			logger.E("GET /consumers", "Error querying database", err.Error())
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database query error"})
 		}
 		defer rows.Close()
 
 		var consumers []MQServer.ConsumerParams
 		for rows.Next() {
 			var consumer MQServer.ConsumerParams
-			var deathQueueName, deathQueueBindExchange, deathQueueBindRoutingKey sql.NullString
-			var deathQueueTTL string
-			if err := rows.Scan(&consumer.Id, &consumer.Name, &consumer.Status, &consumer.QueueName, &consumer.ExchangeName, &consumer.RoutingKey, &deathQueueName, &deathQueueBindExchange, &deathQueueBindRoutingKey, &deathQueueTTL, &consumer.Callback, &consumer.RetryMode, &consumer.QueueCount); err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+			err := rows.Scan(
+				&consumer.Id,
+				&consumer.Name,
+				&consumer.Status,
+				&consumer.QueueName,
+				&consumer.ExchangeName,
+				&consumer.RoutingKey,
+				&consumer.DeathQueue.QueueName,
+				&consumer.DeathQueue.BindExchange,
+				&consumer.DeathQueue.BindRoutingKey,
+				&consumer.DeathQueue.TTL,
+				&consumer.Callback,
+				&consumer.RetryMode,
+				&consumer.QueueCount,
+			)
+			if err != nil {
+				logger.E("GET /consumers", "Error scanning row", err.Error())
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error scanning database row"})
 			}
-			consumer.DeathQueue.QueueName = deathQueueName.String
-			consumer.DeathQueue.BindExchange = deathQueueBindExchange.String
-			consumer.DeathQueue.BindRoutingKey = deathQueueBindRoutingKey.String
 			consumers = append(consumers, consumer)
+		}
+
+		if err := rows.Err(); err != nil {
+			logger.E("GET /consumers", "Error after iterating rows", err.Error())
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error after iterating rows"})
+		}
+
+		// If no consumers were found, return an empty array instead of null
+		if len(consumers) == 0 {
+			return c.JSON([]MQServer.ConsumerParams{})
 		}
 
 		return c.JSON(consumers)
