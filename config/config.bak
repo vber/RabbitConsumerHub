@@ -1,0 +1,17 @@
+{
+	"nacos": {
+		"ClientConfig": {
+			"NamespaceId": "d9fd09cf-6569-4a2d-a623-5df9999dd91a",
+			"TimeoutMs": 5000,
+			"NotLoadCacheAtStart": true,
+			"Username": "nacos",
+			"Password": "vinehoo666"
+		},
+		"ServerConfig": {
+			"IpAddr": "39.103.135.15",
+			"ContextPath": "/nacos",
+			"Port": 8848,
+			"Scheme": "http"
+		}
+	}
+}
