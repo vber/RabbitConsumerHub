@@ -18,11 +18,13 @@ const messages = {
 };
 
 function App() {
-  const [locale, setLocale] = useState('en-US');
+  const [locale, setLocale] = useState(localStorage.getItem('locale') || 'en-US');
   const [consumers, setConsumers] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
+
+  const hideSettingsButton = window.location.pathname === '/settings';
 
   useEffect(() => {
     fetchConsumers();
@@ -199,6 +201,11 @@ function App() {
     form.resetFields();
   };
 
+  const handleLocaleChange = (value) => {
+    setLocale(value);
+    localStorage.setItem('locale', value);
+  };
+
   return (
     <IntlProvider messages={messages[locale]} locale={locale}>
       <Layout className="layout">
@@ -207,13 +214,15 @@ function App() {
             <FormattedMessage id="app.title" />
           </div>
           <div>
-            <Select defaultValue={locale} style={{ width: 120, marginRight: 16 }} onChange={setLocale}>
+            <Select defaultValue={locale} style={{ width: 120, marginRight: 16 }} onChange={handleLocaleChange}>
               <Option value="en-US">English</Option>
               <Option value="zh-CN">中文</Option>
             </Select>
-            <Button icon={<SettingOutlined />} onClick={() => window.open('/settings', '_blank')}>
-              <FormattedMessage id="app.settings" />
-            </Button>
+            {!hideSettingsButton && (
+              <Button icon={<SettingOutlined />} onClick={() => window.open('/settings', '_blank')}>
+                <FormattedMessage id="app.settings" />
+              </Button>
+            )}
           </div>
         </Header>
         <Content style={{ padding: '0 50px' }}>

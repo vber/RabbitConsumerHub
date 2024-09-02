@@ -30,5 +30,19 @@
   "validation.queueName": "请输入队列名称",
   "validation.exchangeName": "请输入交换机名称",
   "validation.routingKey": "请输入路由键",
-  "validation.callback": "请输入回调地址"
+  "validation.callback": "请输入回调地址",
+  "settings.host": "主机",
+  "settings.port": "端口",
+  "settings.vhost": "虚拟主机",
+  "settings.user": "用户",
+  "settings.password": "密码",
+  "settings.save": "保存",
+  "settings.fetchError": "获取 RabbitMQ 配置失败",
+  "settings.updateSuccess": "RabbitMQ 配置更新成功",
+  "settings.updateError": "更新 RabbitMQ 配置失败",
+  "validation.host": "请输入主机",
+  "validation.port": "请输入端口",
+  "validation.vhost": "请输入虚拟主机",
+  "validation.user": "请输入用户",
+  "validation.password": "请输入密码"
 }

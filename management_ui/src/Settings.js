@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Form, Input, Button, message } from 'antd';
 import { FormattedMessage, useIntl } from 'react-intl';
 
@@ -6,28 +6,25 @@ const Settings = () => {
   const [form] = Form.useForm();
   const intl = useIntl();
 
-  useEffect(() => {
-    fetchRabbitMQConfig();
-  }, []);
-
-  const fetchRabbitMQConfig = async () => {
+  const fetchRabbitMQConfig = useCallback(async () => {
     try {
       const response = await fetch('http://localhost:1981/rabbitmq-config');
       const data = await response.json();
-      console.log("data vhost",data.VHOST, data)
       form.setFieldsValue({
         host: data.HOSTNAME,
         port: data.PORT,
         user: data.USERNAME,
         password: data.PASSWORD,
-        heartbeat: data.HEARTBEAT,
-        frameMax: data.FRAMEMAX,
         vhost: data.VHOST,
       });
     } catch (error) {
       message.error(intl.formatMessage({ id: 'settings.fetchError' }));
     }
-  };
+  }, [form, intl]);
+
+  useEffect(() => {
+    fetchRabbitMQConfig();
+  }, [fetchRabbitMQConfig]);
 
   const onFinish = async (values) => {
     console.log(JSON.stringify({
@@ -63,7 +60,8 @@ const Settings = () => {
   };
 
   return (
-    <Form form={form} onFinish={onFinish} layout="vertical">
+
+    <Form form={form} onFinish={onFinish} layout="vertical" style={{ marginTop: '16px' }}>
       <Form.Item
         name="host"
         label={<FormattedMessage id="settings.host" />}

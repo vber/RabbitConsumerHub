@@ -30,5 +30,19 @@
   "validation.queueName": "Please enter the queue name",
   "validation.exchangeName": "Please enter the exchange name",
   "validation.routingKey": "Please enter the routing key",
-  "validation.callback": "Please enter the callback URL"
+  "validation.callback": "Please enter the callback URL",
+  "settings.host": "Host",
+  "settings.port": "Port",
+  "settings.vhost": "Virtual Host",
+  "settings.user": "User",
+  "settings.password": "Password",
+  "settings.save": "Save",
+  "settings.fetchError": "Failed to fetch RabbitMQ configuration",
+  "settings.updateSuccess": "RabbitMQ configuration updated successfully",
+  "settings.updateError": "Failed to update RabbitMQ configuration",
+  "validation.host": "Please enter the host",
+  "validation.port": "Please enter the port",
+  "validation.vhost": "Please enter the virtual host",
+  "validation.user": "Please enter the user",
+  "validation.password": "Please enter the password"
 }
