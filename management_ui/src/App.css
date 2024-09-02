@@ -1,0 +1,58 @@
+.layout {
+  min-height: 100vh;
+}
+
+.logo {
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.site-layout-content {
+  background: #fff;
+  padding: 24px;
+  min-height: 280px;
+}
+
+.ant-layout-header {
+  background: #001529;
+}
+
+.ant-layout-footer {
+  background: #f0f2f5;
+}
+
+/* 添加一些额外的样式来改善整体外观 */
+.ant-table {
+  margin-top: 16px;
+}
+
+.ant-btn-primary {
+  background-color: #1890ff;
+  border-color: #1890ff;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background-color: #40a9ff;
+  border-color: #40a9ff;
+}
+
+.ant-select-selector {
+  background-color: #fff !important;
+}
+
+/* 为移动设备添加一些响应式样式 */
+@media (max-width: 768px) {
+  .ant-layout-content {
+    padding: 0 16px;
+  }
+
+  .site-layout-content {
+    padding: 16px;
+  }
+
+  .ant-table {
+    font-size: 12px;
+  }
+}

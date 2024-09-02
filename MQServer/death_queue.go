@@ -11,18 +11,6 @@ var (
 	conn *amqp.Connection
 )
 
-func ConnnectMQ() error {
-	var (
-		err error
-	)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func CreateDeathQueue(config *RabbitMQConfig, v map[string]interface{}) (e error) {
 	var (
 		x_death_queue_name        string

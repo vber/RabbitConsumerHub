@@ -1,116 +1,61 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"go-rabbitmq-consumers/MQServer"
 	retry "go-rabbitmq-consumers/Retry"
+	"go-rabbitmq-consumers/api"
+	"go-rabbitmq-consumers/db"
 	"go-rabbitmq-consumers/logger"
 	"time"
 
-	"github.com/vber/nacos/v2"
+	"github.com/gofiber/fiber/v2"
 )
 
 var (
 	RabbitMQConf    *MQServer.RabbitMQConfig
 	ConsumersConf   *MQServer.RabbitMQConsumers
-	ConsumersPool   map[string]*MQServer.VinehooRabbitMQServer
+	ConsumersPool   map[string]*MQServer.RabbitMQServer
 	RetryServiceURL string // 重试服务URL
 )
 
-type MongoConfig struct {
-	Master   string `json:"mongo_client_master"`
-	Slave    string `json:"mongo_client_slave"`
-	Port     int    `json:"mongo_port"`
-	User     string `json:"mongo_auth"`
-	Password string `json:"mongo_password"`
-}
-
 func init_config() {
-	var (
-		err    error
-		config string
-	)
+	const FUNCNAME = "init_config"
+	var err error
 
-	const (
-		FUNCNAME = "init_config"
-	)
-
-	config, err = nacos.GetString("rabbitmq", "vinehoo.accounts", nil)
+	// Initialize the database connection
+	database, err := db.InitDB("./rch.db")
 	if err != nil {
-		logger.E(FUNCNAME, err.Error())
+		logger.E(FUNCNAME, "failed to initialize database.", err.Error())
 		panic(err)
 	}
-	if config == "" {
-		logger.E(FUNCNAME, "rabbitmq configuration is empty!")
-		panic("rabbitmq configuration is empty!")
-	}
+	defer database.Close()
 
-	err = json.Unmarshal([]byte(config), &RabbitMQConf)
+	RabbitMQConf, err = db.FetchRabbitMQConfig(database)
 	if err != nil {
-		logger.E(FUNCNAME, err.Error())
+		logger.E(FUNCNAME, "failed to fetch RabbitMQ configuration.", err.Error())
 		panic(err)
 	}
 
-	config, err = nacos.GetString("rabbitmq.consumers", "vinehoo.services", func(data *string, err error) {
-		if err != nil {
-			logger.E(FUNCNAME, "nacos listener error:", err.Error())
-			return
-		}
-		logger.I(FUNCNAME, "nacos listener data:", *data)
-		new_conf := MQServer.RabbitMQConsumers{}
-		e := json.Unmarshal([]byte(*data), &new_conf)
-		if e == nil {
-			for _, item := range new_conf.Consumers {
-				if ConsumersPool[item.Id] != nil {
-					if item.Status == "stop" {
-						s := ConsumersPool[item.Id]
-						s.StopConsumer()
-						delete(ConsumersPool, item.Id)
-						logger.I("nacos listener", fmt.Sprintf("%s consumer(id:%s) stopped.", item.Name, item.Id))
-					}
-				} else {
-					start_consumer(item)
-				}
-			}
-		} else {
-			logger.E("nacos listener", err.Error())
-		}
-	})
-
+	ConsumersConf, err = db.FetchConsumersConfig(database)
 	if err != nil {
-		panic(err)
-	}
-	if config == "" {
-		logger.E(FUNCNAME, "consumers configuration are empty!")
-		panic("consumers configuration are empty!")
-	}
-
-	err = json.Unmarshal([]byte(config), &ConsumersConf)
-	if err != nil {
-		logger.E(FUNCNAME, err.Error())
+		logger.E(FUNCNAME, "failed to fetch consumers configuration.", err.Error())
 		panic(err)
 	}
 
-	RetryServiceURL, err = nacos.GetString("retry.url", "vinehoo.conf", func(data *string, err error) {
-		if err == nil {
-			RetryServiceURL = *data
-		}
-	})
+	RetryServiceURL, err = db.FetchRetryServiceURL(database)
 	if err != nil {
-		logger.E(FUNCNAME, "failed to get retry.url config.", err.Error())
+		logger.E(FUNCNAME, "failed to fetch RetryServiceURL.", err.Error())
 		panic(err)
 	}
 }
 
 func init() {
-	ConsumersPool = make(map[string]*MQServer.VinehooRabbitMQServer)
+	ConsumersPool = make(map[string]*MQServer.RabbitMQServer)
 }
 
 func start_consumer(consumer_config MQServer.ConsumerParams) {
-	const (
-		FUNCNAME = "start_consumer"
-	)
+	const FUNCNAME = "start_consumer"
 	if consumer_config.Status != "running" {
 		logger.I(FUNCNAME, fmt.Sprintf("consumer would not start due to staus=%s,queuename=%s", consumer_config.Status, consumer_config.QueueName))
 		return
@@ -132,7 +77,7 @@ func start_consumer(consumer_config MQServer.ConsumerParams) {
 		}
 	}
 
-	mq_server := MQServer.NewVinehooRabbitMQServer(RabbitMQConf)
+	mq_server := MQServer.NewRabbitMQServer(RabbitMQConf)
 	mq_server.DoError = func(queueData string, consumer *MQServer.ConsumerParams) {
 		r := retry.RetryURL{
 			QueueData: queueData,
@@ -176,6 +121,27 @@ func main() {
 
 	for _, consumer := range ConsumersConf.Consumers {
 		start_consumer(consumer)
+	}
+
+	// Initialize Fiber app
+	app := fiber.New()
+
+	// Initialize the database connection
+	database, err := db.InitDB("./rch.db")
+	if err != nil {
+		logger.E("main", "failed to initialize database.", err.Error())
+		panic(err)
+	}
+	defer database.Close()
+
+	// Register API routes
+	api.RegisterRoutes(app, database)
+
+	// Start Fiber app
+	logger.I("main", "Starting API server on port 1981")
+	if err := app.Listen(":1981"); err != nil {
+		logger.E("main", "failed to start API server.", err.Error())
+		panic(err)
 	}
 
 	forever := make(chan bool)
