@@ -34,13 +34,13 @@ func InitDB(dbPath string) (*sql.DB, error) {
 			queue_name TEXT,
 			exchange_name TEXT,
 			routing_key TEXT,
-			death_queue_name TEXT,
-			death_queue_bind_exchange TEXT,
-			death_queue_bind_routing_key TEXT,
-			death_queue_ttl INTEGER,
+			death_queue_name TEXT DEFAULT '',
+			death_queue_bind_exchange TEXT DEFAULT '',
+			death_queue_bind_routing_key TEXT DEFAULT '',
+			death_queue_ttl TEXT DEFAULT '',
 			callback TEXT,
-			retry_mode TEXT,
-			queue_count INTEGER
+			retry_mode TEXT DEFAULT '',
+			queue_count INTEGER DEFAULT 1
 		);`,
 		`CREATE TABLE IF NOT EXISTS retry_service_url (
 			id INTEGER PRIMARY KEY,
@@ -135,6 +135,7 @@ func FetchConsumersConfig(db *sql.DB) (*MQServer.RabbitMQConsumers, error) {
 		consumer.DeathQueue.QueueName = deathQueueName.String
 		consumer.DeathQueue.BindExchange = deathQueueBindExchange.String
 		consumer.DeathQueue.BindRoutingKey = deathQueueBindRoutingKey.String
+		consumer.DeathQueue.TTL = deathQueueTTL // Adjusted to handle TEXT type
 		consumer.RetryMode = retryMode.String
 		consumersConf.Consumers = append(consumersConf.Consumers, consumer)
 	}

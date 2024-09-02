@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Table, Button, Select, message, Modal, Form, Input, InputNumber, Switch, Row, Col } from 'antd';
 import { SettingOutlined, PlusOutlined } from '@ant-design/icons';
 import { IntlProvider, FormattedMessage, useIntl } from 'react-intl';
-import { Route, Routes, useNavigate } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import enUS from './locales/en-US.json';
 import zhCN from './locales/zh-CN.json';
 import 'antd/dist/reset.css';
@@ -22,7 +22,6 @@ function App() {
   const [consumers, setConsumers] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
-  const navigate = useNavigate();
 
   const hideSettingsButton = window.location.pathname === '/settings';
 
@@ -64,26 +63,6 @@ function App() {
     }
   };
 
-  const handleEditConsumer = async (updatedConsumer) => {
-    try {
-      const response = await fetch(`http://localhost:1981/consumers/${updatedConsumer.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedConsumer),
-      });
-      if (response.ok) {
-        message.success('Consumer updated successfully');
-        fetchConsumers(); // Refresh the consumer list
-      } else {
-        message.error('Failed to update consumer');
-      }
-    } catch (error) {
-      message.error('Failed to update consumer');
-    }
-  };
-
   const handleDeleteConsumer = async (consumerId) => {
     try {
       const response = await fetch(`http://localhost:1981/consumers/${consumerId}`, {
@@ -105,12 +84,14 @@ function App() {
       title: <FormattedMessage id="table.name" />,
       dataIndex: 'name',
       key: 'name',
+      fixed: 'left',
       render: (text) => <FormattedMessage id={`consumer.${text}`} defaultMessage={text} />,
     },
     {
       title: <FormattedMessage id="table.status" />,
       dataIndex: 'status',
       key: 'status',
+      fixed: 'left',
       render: (text) => <FormattedMessage id={`status.${text}`} defaultMessage={text} />,
     },
     {
@@ -166,6 +147,7 @@ function App() {
     {
       title: <FormattedMessage id="table.actions" />,
       key: 'actions',
+      fixed: 'right',
       render: (_, record) => (
         <>
           <Button type="link" onClick={() => handleEdit(record)}>
@@ -234,7 +216,7 @@ function App() {
                     <FormattedMessage id="app.addConsumer" />
                   </Button>
                 </div>
-                <Table columns={columns} dataSource={consumers} rowKey="id" />
+                <Table columns={columns} dataSource={consumers} rowKey="id" scroll={{ x: 'max-content' }} />
               </div>
             } />
             <Route path="/settings" element={<Settings />} />
