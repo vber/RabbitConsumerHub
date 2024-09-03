@@ -119,10 +119,6 @@ func start_consumer(consumer_config MQServer.ConsumerParams) {
 func main() {
 	init_config()
 
-	for _, consumer := range ConsumersConf.Consumers {
-		start_consumer(consumer)
-	}
-
 	// Initialize Fiber app
 	app := fiber.New()
 
@@ -142,6 +138,10 @@ func main() {
 	if err := app.Listen(":1981"); err != nil {
 		logger.E("main", "failed to start API server.", err.Error())
 		panic(err)
+	}
+
+	for _, consumer := range ConsumersConf.Consumers {
+		start_consumer(consumer)
 	}
 
 	forever := make(chan bool)
