@@ -7,16 +7,19 @@ import (
 	"go-rabbitmq-consumers/api"
 	"go-rabbitmq-consumers/db"
 	"go-rabbitmq-consumers/logger"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 var (
-	RabbitMQConf    *MQServer.RabbitMQConfig
-	ConsumersConf   *MQServer.RabbitMQConsumers
-	ConsumersPool   map[string]*MQServer.RabbitMQServer
-	RetryServiceURL string // 重试服务URL
+	RabbitMQConf             *MQServer.RabbitMQConfig
+	ConsumersConf            *MQServer.RabbitMQConsumers
+	ConsumersPool            map[string]*MQServer.RabbitMQServer
+	RetryServiceURL          string // 重试服务URL
+	ConsumerNotificationChan chan api.ConsumerNotification
+	ConsumersMutex           sync.RWMutex
 )
 
 func init_config() {
@@ -52,6 +55,7 @@ func init_config() {
 
 func init() {
 	ConsumersPool = make(map[string]*MQServer.RabbitMQServer)
+	ConsumerNotificationChan = make(chan api.ConsumerNotification, 100)
 }
 
 func start_consumer(consumer_config MQServer.ConsumerParams) {
@@ -116,6 +120,39 @@ func start_consumer(consumer_config MQServer.ConsumerParams) {
 	}
 }
 
+func handleConsumerNotifications() {
+	for notification := range ConsumerNotificationChan {
+		switch notification.Type {
+		case "added":
+			ConsumersMutex.Lock()
+			start_consumer(notification.Consumer)
+			ConsumersMutex.Unlock()
+		case "updated":
+			ConsumersMutex.Lock()
+			if client, exists := ConsumersPool[notification.Consumer.Id]; exists {
+				if client.Consumer.Status == "running" {
+					start_consumer(notification.Consumer)
+				} else if client.Consumer.Status == "stopped" {
+					client.Stop()
+					delete(ConsumersPool, notification.Consumer.Id)
+				}
+			}
+
+			ConsumersMutex.Unlock()
+		case "deleted":
+			ConsumersMutex.Lock()
+			if client, exists := ConsumersPool[notification.Consumer.Id]; exists {
+				client.Stop()
+				if err := client.DeleteQueue(); err != nil {
+					logger.E("main", fmt.Sprintf("Failed to delete queue %s: %s", client.Consumer.QueueName, err.Error()))
+				}
+				delete(ConsumersPool, notification.Consumer.Id)
+			}
+			ConsumersMutex.Unlock()
+		}
+	}
+}
+
 func main() {
 	init_config()
 
@@ -130,6 +167,9 @@ func main() {
 	}
 	defer database.Close()
 
+	// Set the ConsumerNotificationChan
+	api.SetConsumerNotificationChan(ConsumerNotificationChan)
+
 	// Register API routes
 	api.RegisterRoutes(app, database)
 
@@ -140,9 +180,13 @@ func main() {
 		panic(err)
 	}
 
-	for _, consumer := range ConsumersConf.Consumers {
-		start_consumer(consumer)
-	}
+	go func() {
+		for _, consumer := range ConsumersConf.Consumers {
+			start_consumer(consumer)
+		}
+	}()
+
+	go handleConsumerNotifications()
 
 	forever := make(chan bool)
 	<-forever

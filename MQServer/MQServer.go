@@ -275,3 +275,26 @@ func (mq *RabbitMQServer) StartConsumer(params *ConsumerParams) error {
 
 	return nil
 }
+
+func (mq *RabbitMQServer) DeleteQueue() error {
+	if mq.Connnection == nil {
+		return errors.New("RabbitMQ Connection is nil")
+	}
+
+	ch, err := mq.Connnection.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	_, err = ch.QueueDelete(mq.Consumer.QueueName, false, false, false)
+	if err != nil {
+		return err
+	}
+
+	if mq.Consumer.DeathQueue.QueueName != "" {
+		_, err = ch.QueueDelete(mq.Consumer.DeathQueue.QueueName, false, false, false)
+	}
+
+	return err
+}

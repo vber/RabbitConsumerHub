@@ -241,14 +241,26 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 
+		ConsumerNotificationChan <- ConsumerNotification{Type: "updated", Consumer: consumer}
+
 		return c.JSON(fiber.Map{"message": "Consumer updated successfully"})
 	})
 
 	app.Delete("/consumers/:id", func(c *fiber.Ctx) error {
 		consumerID := c.Params("id")
+
+		// Fetch the consumer before deleting
+		consumer, err := FetchConsumer(db, consumerID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+
 		if err := DeleteConsumer(db, consumerID); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
+
+		ConsumerNotificationChan <- ConsumerNotification{Type: "deleted", Consumer: *consumer}
+
 		return c.JSON(fiber.Map{"message": "Consumer deleted successfully"})
 	})
 
@@ -311,6 +323,53 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 
+		ConsumerNotificationChan <- ConsumerNotification{Type: "added", Consumer: consumer}
+
 		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "Consumer created successfully"})
 	})
+}
+
+// FetchConsumer fetches a single consumer from the database
+func FetchConsumer(database *sql.DB, consumerID string) (*MQServer.ConsumerParams, error) {
+	const FUNCNAME = "FetchConsumer"
+
+	row := database.QueryRow("SELECT * FROM consumers WHERE id = ?", consumerID)
+	var consumer MQServer.ConsumerParams
+	err := row.Scan(
+		&consumer.Id,
+		&consumer.Name,
+		&consumer.Status,
+		&consumer.QueueName,
+		&consumer.ExchangeName,
+		&consumer.RoutingKey,
+		&consumer.DeathQueue.QueueName,
+		&consumer.DeathQueue.BindExchange,
+		&consumer.DeathQueue.BindRoutingKey,
+		&consumer.DeathQueue.TTL,
+		&consumer.Callback,
+		&consumer.RetryMode,
+		&consumer.QueueCount,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			logger.E(FUNCNAME, "no consumer found with ID: "+consumerID)
+			return nil, fiber.NewError(fiber.StatusNotFound, "no consumer found with given ID")
+		}
+		logger.E(FUNCNAME, "failed to query consumer from SQLite database.", err.Error())
+		return nil, err
+	}
+
+	return &consumer, nil
+}
+
+// ConsumerNotification is exported
+type ConsumerNotification struct {
+	Type     string                  `json:"type"`
+	Consumer MQServer.ConsumerParams `json:"consumer"`
+}
+
+var ConsumerNotificationChan chan ConsumerNotification
+
+func SetConsumerNotificationChan(ch chan ConsumerNotification) {
+	ConsumerNotificationChan = ch
 }
