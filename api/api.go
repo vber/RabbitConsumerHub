@@ -198,14 +198,49 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 	})
 
 	app.Put("/consumers/:id", func(c *fiber.Ctx) error {
-		var consumer MQServer.ConsumerParams
-		if err := c.BodyParser(&consumer); err != nil {
+		var consumerData struct {
+			Name         string `json:"name"`
+			Status       string `json:"status"`
+			QueueName    string `json:"queue_name"`
+			ExchangeName string `json:"exchange_name"`
+			RoutingKey   string `json:"routing_key"`
+			Callback     string `json:"callback"`
+			DeathQueue   struct {
+				XDeathQueueName string `json:"x_death_queue_name"`
+				BindExchange    string `json:"bind_exchange"`
+				BindRoutingKey  string `json:"bind_routing_key"`
+				XMessageTTL     string `json:"x_message_ttl"`
+			} `json:"death_queue"`
+			QueueCount uint64 `json:"queue_count"`
+			RetryMode  string `json:"retry_mode"`
+		}
+
+		if err := c.BodyParser(&consumerData); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 		}
-		consumer.Id = c.Params("id")
+
+		consumer := MQServer.ConsumerParams{
+			Id:           c.Params("id"),
+			Name:         consumerData.Name,
+			Status:       consumerData.Status,
+			QueueName:    consumerData.QueueName,
+			ExchangeName: consumerData.ExchangeName,
+			RoutingKey:   consumerData.RoutingKey,
+			Callback:     consumerData.Callback,
+			DeathQueue: MQServer.DeathQueueInfo{
+				QueueName:      consumerData.DeathQueue.XDeathQueueName,
+				BindExchange:   consumerData.DeathQueue.BindExchange,
+				BindRoutingKey: consumerData.DeathQueue.BindRoutingKey,
+				TTL:            consumerData.DeathQueue.XMessageTTL,
+			},
+			QueueCount: consumerData.QueueCount,
+			RetryMode:  consumerData.RetryMode,
+		}
+
 		if err := EditConsumer(db, &consumer); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
+
 		return c.JSON(fiber.Map{"message": "Consumer updated successfully"})
 	})
 
@@ -231,5 +266,51 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 		return c.JSON(fiber.Map{"message": "Consumer disabled successfully"})
+	})
+
+	app.Post("/consumers", func(c *fiber.Ctx) error {
+		var consumerData struct {
+			Name         string `json:"name"`
+			Status       string `json:"status"`
+			QueueName    string `json:"queue_name"`
+			ExchangeName string `json:"exchange_name"`
+			RoutingKey   string `json:"routing_key"`
+			Callback     string `json:"callback"`
+			DeathQueue   struct {
+				XDeathQueueName string `json:"x_death_queue_name"`
+				BindExchange    string `json:"bind_exchange"`
+				BindRoutingKey  string `json:"bind_routing_key"`
+				XMessageTTL     string `json:"x_message_ttl"`
+			} `json:"death_queue"`
+			QueueCount uint64 `json:"queue_count"`
+			RetryMode  string `json:"retry_mode"`
+		}
+
+		if err := c.BodyParser(&consumerData); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+
+		consumer := MQServer.ConsumerParams{
+			Name:         consumerData.Name,
+			Status:       consumerData.Status,
+			QueueName:    consumerData.QueueName,
+			ExchangeName: consumerData.ExchangeName,
+			RoutingKey:   consumerData.RoutingKey,
+			Callback:     consumerData.Callback,
+			DeathQueue: MQServer.DeathQueueInfo{
+				QueueName:      consumerData.DeathQueue.XDeathQueueName,
+				BindExchange:   consumerData.DeathQueue.BindExchange,
+				BindRoutingKey: consumerData.DeathQueue.BindRoutingKey,
+				TTL:            consumerData.DeathQueue.XMessageTTL,
+			},
+			QueueCount: consumerData.QueueCount,
+			RetryMode:  consumerData.RetryMode,
+		}
+
+		if err := AddConsumer(db, &consumer); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "Consumer created successfully"})
 	})
 }

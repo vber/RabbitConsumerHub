@@ -22,7 +22,9 @@
   "button.edit": "Edit",
   "button.delete": "Delete",
   "form.submit": "Submit",
+  "form.update": "Update",
   "modal.addConsumer": "Add Consumer",
+  "modal.editConsumer": "Edit Consumer",
   "placeholder.hours": "Hours",
   "placeholder.minutes": "Minutes",
   "placeholder.seconds": "Seconds",
@@ -44,5 +46,13 @@
   "validation.port": "Please enter the port",
   "validation.vhost": "Please enter the virtual host",
   "validation.user": "Please enter the user",
-  "validation.password": "Please enter the password"
+  "validation.password": "Please enter the password",
+  "error.invalidDataFormat": "Invalid data format",
+  "error.failedToFetchConsumers": "Failed to fetch consumers",
+  "error.failedToAddConsumer": "Failed to add consumer",
+  "error.failedToDeleteConsumer": "Failed to delete consumer",
+  "error.failedToUpdateConsumer": "Failed to update consumer",
+  "success.consumerAdded": "Consumer added successfully",
+  "success.consumerDeleted": "Consumer deleted successfully",
+  "success.consumerUpdated": "Consumer updated successfully"
 }

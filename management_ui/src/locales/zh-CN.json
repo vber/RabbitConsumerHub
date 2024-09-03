@@ -22,7 +22,9 @@
   "button.edit": "编辑",
   "button.delete": "删除",
   "form.submit": "提交",
-  "modal.addConsumer":"添加消费者",
+  "form.update": "更新",
+  "modal.addConsumer": "添加消费者",
+  "modal.editConsumer": "编辑消费者",
   "placeholder.hours": "小时",
   "placeholder.minutes": "分钟",
   "placeholder.seconds": "秒",
@@ -44,5 +46,13 @@
   "validation.port": "请输入端口",
   "validation.vhost": "请输入虚拟主机",
   "validation.user": "请输入用户",
-  "validation.password": "请输入密码"
+  "validation.password": "请输入密码",
+  "error.invalidDataFormat": "无效的数据格式",
+  "error.failedToFetchConsumers": "获取消费者失败",
+  "error.failedToAddConsumer": "添加消费者失败",
+  "error.failedToDeleteConsumer": "删除消费者失败",
+  "error.failedToUpdateConsumer": "更新消费者失败",
+  "success.consumerAdded": "消费者添加成功",
+  "success.consumerDeleted": "消费者删除成功",
+  "success.consumerUpdated": "消费者更新成功"
 }
