@@ -406,21 +406,21 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
     onFinish(formattedValues);
   };
 
-  const TimeInputs = ({ fieldName }) => (
+  const TimeInputs = ({ fieldName, disabled }) => (
     <Row gutter={16}>
       <Col span={8}>
         <Form.Item name={`${fieldName}_hours`} noStyle>
-          <InputNumber min={0} addonAfter={<FormattedMessage id="placeholder.hours" />} />
+          <InputNumber min={0} addonAfter={<FormattedMessage id="placeholder.hours" />} disabled={disabled} />
         </Form.Item>
       </Col>
       <Col span={8}>
         <Form.Item name={`${fieldName}_minutes`} noStyle>
-          <InputNumber min={0} max={59} addonAfter={<FormattedMessage id="placeholder.minutes" />} />
+          <InputNumber min={0} max={59} addonAfter={<FormattedMessage id="placeholder.minutes" />} disabled={disabled} />
         </Form.Item>
       </Col>
       <Col span={8}>
         <Form.Item name={`${fieldName}_seconds`} noStyle>
-          <InputNumber min={0} max={59} addonAfter={<FormattedMessage id="placeholder.seconds" />} />
+          <InputNumber min={0} max={59} addonAfter={<FormattedMessage id="placeholder.seconds" />} disabled={disabled} />
         </Form.Item>
       </Col>
     </Row>
@@ -442,7 +442,7 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
             label={<FormattedMessage id="table.queueName" />}
             rules={[{ required: true, message: intl.formatMessage({ id: 'validation.queueName' }) }]}
           >
-            <Input />
+            <Input disabled={!!editingConsumer} />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
@@ -451,7 +451,7 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
                 label={<FormattedMessage id="table.exchangeName" />}
                 rules={[{ required: true, message: intl.formatMessage({ id: 'validation.exchangeName' }) }]}
               >
-                <Input />
+                <Input disabled={!!editingConsumer} />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -460,7 +460,7 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
                 label={<FormattedMessage id="table.vhost" />}
                 rules={[{ required: true, message: intl.formatMessage({ id: 'validation.vhost' }) }]}
               >
-                <Input />
+                <Input disabled={!!editingConsumer} />
               </Form.Item>
             </Col>
           </Row>
@@ -469,7 +469,7 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
             label={<FormattedMessage id="table.routingKey" />}
             rules={[{ required: true, message: intl.formatMessage({ id: 'validation.routingKey' }) }]}
           >
-            <Input />
+            <Input disabled={!!editingConsumer} />
           </Form.Item>
           <Form.Item
             name="callback"
@@ -484,7 +484,7 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
             name={['death_queue', 'x_death_queue_name']}
             label={<FormattedMessage id="table.deathQueueName" />}
           >
-            <Input />
+            <Input disabled={!!editingConsumer} />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
@@ -492,7 +492,7 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
                 name={['death_queue', 'bind_exchange']}
                 label={<FormattedMessage id="table.deathQueueBindExchange" />}
               >
-                <Input />
+                <Input disabled={!!editingConsumer} />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -500,14 +500,14 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
                 name={['death_queue', 'bind_routing_key']}
                 label={<FormattedMessage id="table.deathQueueBindRoutingKey" />}
               >
-                <Input />
+                <Input disabled={!!editingConsumer} />
               </Form.Item>
             </Col>
           </Row>
           <Form.Item
             label={<FormattedMessage id="table.deathQueueTTL" />}
           >
-            <TimeInputs fieldName="death_queue_ttl" />
+            <TimeInputs fieldName="death_queue_ttl" disabled={!!editingConsumer} />
           </Form.Item>
           <Form.Item
             label={<FormattedMessage id="table.retryMode" />}
