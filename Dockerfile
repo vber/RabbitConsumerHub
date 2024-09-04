@@ -4,7 +4,10 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o main .
+# Install build dependencies
+RUN apk add --no-cache gcc musl-dev
+# Build with CGO enabled
+RUN CGO_ENABLED=1 GOOS=linux go build -o main .
 
 # Build stage for React frontend
 FROM node:18-alpine AS frontend-builder
@@ -20,6 +23,9 @@ WORKDIR /app
 
 # Copy Go binary from backend-builder
 COPY --from=backend-builder /app/main .
+
+# Install runtime dependencies
+RUN apk add --no-cache libc6-compat
 
 # Install Nginx
 RUN apk add --no-cache nginx
