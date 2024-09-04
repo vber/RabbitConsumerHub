@@ -26,6 +26,32 @@
 - `logs/`: 日志文件
 - `main.go`: 主程序入口
 
+## 使用方法
+#### 自己创建镜像
+1. **环境准备**：
+   - 确保已安装 Docker。
+   - 确保 Docker 服务正在运行。
+
+2. **构建项目**：
+   - 在项目根目录下运行以下命令以构建 Docker 镜像：
+     ```bash
+     docker build -t rabbitmq-consumer-hub .
+     ```
+#### 拉取已有镜像
+```bash
+docker pull vber/rabbitmq-consumer-hub:latest
+```
+
+**运行项目**：
+   - 使用以下命令启动 Docker 容器：
+     ```bash
+     docker run -d -p 80:80 rabbitmq-consumer-hub
+     ```
+**访问应用**：
+   - 打开浏览器输入IP加上端口号来访问Web 界面。您可以在设置中配置 RabbitMQ 的连接信息，包括主机、端口、用户和密码。
+
+
+![screenshot1](screenshot1.png)
 
 ## 许可证
 

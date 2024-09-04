@@ -1,5 +1,5 @@
 {
-  "app.title": "RabbitMQ 消费者中心",
+  "app.title": "RabbitMQ Consumers Hub",
   "app.settings": "设置",
   "app.addConsumer": "添加消费者",
   "table.name": "名称",

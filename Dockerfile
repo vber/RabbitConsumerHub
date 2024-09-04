@@ -3,7 +3,9 @@ FROM golang:1.21-alpine AS backend-builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
+# Copy backend files, excluding management_ui and rch.db
 COPY . .
+RUN rm -rf management_ui && rm -f rch.db
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev
 # Build with CGO enabled
