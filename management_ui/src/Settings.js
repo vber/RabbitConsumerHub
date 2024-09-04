@@ -1,10 +1,11 @@
-import React, { useEffect, useCallback } from 'react';
-import { Form, Input, Button, message } from 'antd';
+import React, { useEffect, useCallback, useState } from 'react';
+import { Form, Input, Button, message, Spin } from 'antd';
 import { FormattedMessage, useIntl } from 'react-intl';
 
 const Settings = () => {
   const [form] = Form.useForm();
   const intl = useIntl();
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
 
   const fetchRabbitMQConfig = useCallback(async () => {
     try {
@@ -59,8 +60,35 @@ const Settings = () => {
     }
   };
 
-  return (
+  const testConnection = async () => {
+    const values = form.getFieldsValue();
+    setIsTestingConnection(true);
+    try {
+      const response = await fetch('http://localhost:1981/test-rabbitmq-connection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          host: values.host,
+          port: values.port,
+          user: values.user,
+          password: values.password,
+        }),
+      });
+      if (response.ok) {
+        message.success(intl.formatMessage({ id: 'settings.testConnectionSuccess' }));
+      } else {
+        message.error(intl.formatMessage({ id: 'settings.testConnectionError' }));
+      }
+    } catch (error) {
+      message.error(intl.formatMessage({ id: 'settings.testConnectionError' }));
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
 
+  return (
     <Form form={form} onFinish={onFinish} layout="vertical" style={{ marginTop: '16px' }}>
       <Form.Item
         name="host"
@@ -91,8 +119,17 @@ const Settings = () => {
         <Input.Password />
       </Form.Item>
       <Form.Item>
-        <Button type="primary" htmlType="submit">
+        <Button type="primary" htmlType="submit" style={{ marginRight: '8px' }}>
           <FormattedMessage id="settings.save" />
+        </Button>
+        <Button 
+          onClick={testConnection} 
+          type="default"
+          style={{ backgroundColor: 'red', color: 'white' }}
+          icon={isTestingConnection ? <Spin size="small" /> : null}
+          disabled={isTestingConnection}
+        >
+          <FormattedMessage id="settings.testConnection" />
         </Button>
       </Form.Item>
     </Form>

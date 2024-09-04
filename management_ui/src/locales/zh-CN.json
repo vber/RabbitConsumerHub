@@ -64,5 +64,8 @@
   "confirm.restartConsumer":"您确定要重启这个消费者吗？",
   "confirm.deleteConsumer":"您确定要删除这个消费者吗？",
   "button.yes":"确定",
-  "button.no": "取消"
+  "button.no": "取消",
+  "settings.testConnection": "测试连接",
+  "settings.testConnectionSuccess": "连接成功",
+  "settings.testConnectionError": "连接失败"
 }

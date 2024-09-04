@@ -2,12 +2,14 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"go-rabbitmq-consumers/MQServer"
 	"go-rabbitmq-consumers/logger"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/streadway/amqp"
 )
 
 // UpdateRabbitMQConfig updates the RabbitMQ server configuration in the database
@@ -352,6 +354,31 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 
 		ConsumerNotificationChan <- ConsumerNotification{Type: "restarted", Consumer: *consumer}
 		return c.JSON(fiber.Map{"message": "Consumer restarted successfully"})
+	})
+
+	app.Post("/test-rabbitmq-connection", func(c *fiber.Ctx) error {
+		var config struct {
+			Host     string `json:"host"`
+			Port     int    `json:"port"`
+			User     string `json:"user"`
+			Password string `json:"password"`
+		}
+		if err := c.BodyParser(&config); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+
+		// Construct the AMQP URL
+		amqpURL := fmt.Sprintf("amqp://%s:%s@%s:%d/", config.User, config.Password, config.Host, config.Port)
+
+		// Try to establish a connection
+		conn, err := amqp.Dial(amqpURL)
+		if err != nil {
+			logger.E("TestRabbitMQConnection", "Failed to connect to RabbitMQ", err.Error())
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to connect to RabbitMQ"})
+		}
+		defer conn.Close()
+
+		return c.JSON(fiber.Map{"message": "Connection successful"})
 	})
 }
 
