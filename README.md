@@ -50,8 +50,17 @@ docker pull vber/rabbitmq-consumer-hub:latest
 **访问应用**：
    - 打开浏览器输入IP加上端口号来访问Web 界面。您可以在设置中配置 RabbitMQ 的连接信息，包括主机、端口、用户和密码。
 
-
 ![screenshot1](screenshot1.png)
+
+## 开发环境
+```bash
+docker-compose up --build
+```
+启动后访问http://127.0.0.1:1981。前后端代码更改后会自动热加载。当Go代码有新增包时需要重构镜像。
+```bash
+docker-compose down
+docker-compose up --build
+```
 
 ## 许可证
 

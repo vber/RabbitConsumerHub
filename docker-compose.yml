@@ -1,0 +1,25 @@
+version: '3'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "1981:1981"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: air
+
+  frontend:
+    build:
+      context: ./management_ui
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./management_ui:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_BASE_URL=http://localhost:1981
+    command: npm start

@@ -48,7 +48,7 @@ function AppContent({ locale, handleLocaleChange }) {
 
   const fetchConsumers = async () => {
     try {
-      const response = await fetch('http://localhost:1981/consumers');
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/consumers`);
       const data = await response.json();
       if (Array.isArray(data)) {
         setConsumers(data);
@@ -75,7 +75,7 @@ function AppContent({ locale, handleLocaleChange }) {
       // Sanitize the entire newConsumer object
       const sanitizedConsumer = sanitizeObject(newConsumer);
 
-      const response = await fetch('http://localhost:1981/consumers', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/consumers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ function AppContent({ locale, handleLocaleChange }) {
 
   const handleDeleteConsumer = async (consumerId) => {
     try {
-      const response = await fetch(`http://localhost:1981/consumers/${consumerId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/consumers/${consumerId}`, {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -114,7 +114,7 @@ function AppContent({ locale, handleLocaleChange }) {
 
   const handleRestartConsumer = async (consumerId) => {
     try {
-      const response = await fetch(`http://localhost:1981/consumers/${consumerId}/restart`, { method: 'PUT' });
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/consumers/${consumerId}/restart`, { method: 'PUT' });
       if (response.ok) {
         message.success(intl.formatMessage({ id: 'success.consumerRestarted' }));
         fetchConsumers();
@@ -280,7 +280,7 @@ function AppContent({ locale, handleLocaleChange }) {
       );
 
       console.log(JSON.stringify(sanitizedConsumer));
-      const response = await fetch(`http://localhost:1981/consumers/${id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/consumers/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -17,6 +17,7 @@ WORKDIR /app
 COPY management_ui/package.json management_ui/package-lock.json ./
 RUN npm ci
 COPY management_ui ./
+# Use production environment for build
 RUN npm run build
 
 # Final stage

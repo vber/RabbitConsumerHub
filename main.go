@@ -17,7 +17,7 @@ var (
 	RabbitMQConf             *MQServer.RabbitMQConfig
 	ConsumersConf            *MQServer.RabbitMQConsumers
 	ConsumersPool            map[string]*MQServer.RabbitMQServer
-	RetryServiceURL          string // 重试服务URL
+	RetryServiceURL          string
 	ConsumerNotificationChan chan api.ConsumerNotification
 	ConsumersMutex           sync.RWMutex
 )
