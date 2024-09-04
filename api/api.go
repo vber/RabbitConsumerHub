@@ -342,6 +342,17 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			"id":      id,
 		})
 	})
+
+	app.Put("/consumers/:id/restart", func(c *fiber.Ctx) error {
+		consumerID := c.Params("id")
+		consumer, err := FetchConsumer(db, consumerID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		ConsumerNotificationChan <- ConsumerNotification{Type: "restarted", Consumer: *consumer}
+		return c.JSON(fiber.Map{"message": "Consumer restarted successfully"})
+	})
 }
 
 // FetchConsumer fetches a single consumer from the database
@@ -357,6 +368,7 @@ func FetchConsumer(database *sql.DB, consumerID string) (*MQServer.ConsumerParam
 		&consumer.QueueName,
 		&consumer.ExchangeName,
 		&consumer.RoutingKey,
+		&consumer.VHost,
 		&consumer.DeathQueue.QueueName,
 		&consumer.DeathQueue.BindExchange,
 		&consumer.DeathQueue.BindRoutingKey,
@@ -364,7 +376,6 @@ func FetchConsumer(database *sql.DB, consumerID string) (*MQServer.ConsumerParam
 		&consumer.Callback,
 		&consumer.RetryMode,
 		&consumer.QueueCount,
-		&consumer.VHost,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

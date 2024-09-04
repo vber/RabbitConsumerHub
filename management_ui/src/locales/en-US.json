@@ -55,5 +55,16 @@
   "error.failedToUpdateConsumer": "Failed to update consumer",
   "success.consumerAdded": "Consumer added successfully",
   "success.consumerDeleted": "Consumer deleted successfully",
-  "success.consumerUpdated": "Consumer updated successfully"
+  "success.consumerUpdated": "Consumer updated successfully",
+  "button.restart": "Restart",
+  "success.consumerRestarted": "Consumer restarted successfully",
+  "error.failedToRestartConsumer": "Failed to restart consumer",
+  "success.consumerStopped": "Consumer stopped successfully",
+  "success.consumerStarted": "Consumer started successfully",
+  "error.failedToStopConsumer": "Failed to stop consumer",
+  "error.failedToStartConsumer": "Failed to start consumer",
+  "confirm.restartConsumer":"Are you sure you want to restart this consumer?",
+  "confirm.deleteConsumer":"Are you sure you want to delete this consumer?",
+  "button.yes":"Yes",
+  "button.no": "No"
 }

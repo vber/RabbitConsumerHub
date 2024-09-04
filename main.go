@@ -171,6 +171,15 @@ func handleConsumerNotifications() {
 				delete(ConsumersPool, notification.Consumer.Id)
 			}
 			ConsumersMutex.Unlock()
+		case "restarted":
+			logger.I("main", fmt.Sprintf("restarting consumer. id:%s", notification.Consumer.Id))
+			ConsumersMutex.Lock()
+			if client, exists := ConsumersPool[notification.Consumer.Id]; exists {
+				client.StopConsumer()
+				delete(ConsumersPool, notification.Consumer.Id)
+			}
+			start_consumer(notification.Consumer)
+			ConsumersMutex.Unlock()
 		}
 	}
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Table, Button, Select, message, Modal, Form, Input, InputNumber, Switch, Row, Col, Typography } from 'antd';
+import { Layout, Table, Button, Select, message, Modal, Form, Input, InputNumber, Switch, Row, Col, Typography, Popconfirm } from 'antd';
 import { SettingOutlined, PlusOutlined } from '@ant-design/icons';
 import { IntlProvider, FormattedMessage, useIntl } from 'react-intl';
 import { Route, Routes } from 'react-router-dom';
@@ -112,6 +112,20 @@ function AppContent({ locale, handleLocaleChange }) {
     }
   };
 
+  const handleRestartConsumer = async (consumerId) => {
+    try {
+      const response = await fetch(`http://localhost:1981/consumers/${consumerId}/restart`, { method: 'PUT' });
+      if (response.ok) {
+        message.success(intl.formatMessage({ id: 'success.consumerRestarted' }));
+        fetchConsumers();
+      } else {
+        message.error(intl.formatMessage({ id: 'error.failedToRestartConsumer' }));
+      }
+    } catch (error) {
+      message.error(intl.formatMessage({ id: 'error.failedToRestartConsumer' }));
+    }
+  };
+
   const columns = [
     {
       title: <FormattedMessage id="table.name" />,
@@ -191,9 +205,26 @@ function AppContent({ locale, handleLocaleChange }) {
           <Button type="link" onClick={() => showModal(record)}>
             <FormattedMessage id="button.edit" defaultMessage="Edit" />
           </Button>
-          <Button type="link" onClick={() => handleDeleteConsumer(record.id)}>
-            <FormattedMessage id="button.delete" defaultMessage="Delete" />
-          </Button>
+          <Popconfirm
+            title={<FormattedMessage id="confirm.deleteConsumer" defaultMessage="Are you sure you want to delete this consumer?" />}
+            onConfirm={() => handleDeleteConsumer(record.id)}
+            okText={<FormattedMessage id="button.yes" defaultMessage="Yes" />}
+            cancelText={<FormattedMessage id="button.no" defaultMessage="No" />}
+          >
+            <Button type="link">
+              <FormattedMessage id="button.delete" defaultMessage="Delete" />
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title={<FormattedMessage id="confirm.restartConsumer" defaultMessage="Are you sure you want to restart this consumer?" />}
+            onConfirm={() => handleRestartConsumer(record.id)}
+            okText={<FormattedMessage id="button.yes" defaultMessage="Yes" />}
+            cancelText={<FormattedMessage id="button.no" defaultMessage="No" />}
+          >
+            <Button type="link">
+              <FormattedMessage id="button.restart" defaultMessage="Restart" />
+            </Button>
+          </Popconfirm>
         </>
       ),
     },

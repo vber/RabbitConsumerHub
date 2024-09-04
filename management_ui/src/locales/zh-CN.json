@@ -53,7 +53,16 @@
   "error.failedToAddConsumer": "添加消费者失败",
   "error.failedToDeleteConsumer": "删除消费者失败",
   "error.failedToUpdateConsumer": "更新消费者失败",
+  "button.restart": "重启",
   "success.consumerAdded": "消费者添加成功",
   "success.consumerDeleted": "消费者删除成功",
-  "success.consumerUpdated": "消费者更新成功"
+  "success.consumerUpdated": "消费者更新成功",
+  "success.consumerStopped": "消费者停止成功",
+  "success.consumerStarted": "消费者启动成功",
+  "error.failedToStopConsumer": "停止消费者失败",
+  "error.failedToStartConsumer": "启动消费者失败",
+  "confirm.restartConsumer":"您确定要重启这个消费者吗？",
+  "confirm.deleteConsumer":"您确定要删除这个消费者吗？",
+  "button.yes":"确定",
+  "button.no": "取消"
 }
