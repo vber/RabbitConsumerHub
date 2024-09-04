@@ -17,10 +17,9 @@ var ()
 
 type RabbitMQConfig struct {
 	Host     string `json:"HOSTNAME"`
-	Port     int    `json:"PORT"` // Added Port field
+	Port     int    `json:"PORT"`
 	User     string `json:"USERNAME"`
 	Password string `json:"PASSWORD"`
-	Vhost    string `json:"VHOST"`
 }
 
 type DeathQueueInfo struct {
@@ -39,6 +38,7 @@ type ConsumerParams struct {
 	ExchangeName     string         `json:"exchange_name"`
 	RoutingKey       string         `json:"routing_key"`
 	QueueName        string         `json:"queue_name"`
+	VHost            string         `json:"vhost"`
 	Status           string         `json:"status"`
 	DingRobotToken   string         `json:"dingrobot_token"`
 	RetryMode        string         `json:"retry_mode"`
@@ -95,32 +95,21 @@ func (mq *RabbitMQServer) ReConnect() {
 		logger.E("ReConnect", retry.Error(), "3秒后重试!")
 		<-time.After(3 * time.Second)
 		logger.I("ReConnect", "Reconnecting ...")
-		go mq.Connect()
+		go mq.Connect(mq.Consumer.VHost)
 	}
 }
 
-func NewRabbitMQServer(config *RabbitMQConfig) *RabbitMQServer {
-	var (
-		mq_server RabbitMQServer
-	)
-
-	if config == nil {
-		panic(errors.New("rabbitMQConfig is nil"))
+func NewRabbitMQServer(conf *RabbitMQConfig) *RabbitMQServer {
+	if conf == nil {
+		logger.E("NewRabbitMQServer", "RabbitMQConfig is nil")
+		return nil
 	}
-
-	mq_server = RabbitMQServer{
-		ServerConfig: config,
+	return &RabbitMQServer{
+		ServerConfig: conf,
 	}
-
-	mq_server.RetryChan = make(chan error)
-	mq_server.Connected = make(chan bool, 1)
-
-	go mq_server.ReConnect()
-
-	return &mq_server
 }
 
-func (mq *RabbitMQServer) Connect() bool {
+func (mq *RabbitMQServer) Connect(vhost string) bool {
 	var (
 		err error
 	)
@@ -128,7 +117,7 @@ func (mq *RabbitMQServer) Connect() bool {
 	mq.StopCtx, mq.Stop = context.WithCancel(context.Background())
 
 	mq.Connnection, err = amqp.DialConfig(fmt.Sprintf("amqp://%s:%s@%s:%d", mq.ServerConfig.User, mq.ServerConfig.Password, mq.ServerConfig.Host, mq.ServerConfig.Port), amqp.Config{
-		Vhost: mq.ServerConfig.Vhost,
+		Vhost: vhost,
 	})
 
 	if err != nil {

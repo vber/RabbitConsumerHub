@@ -128,6 +128,11 @@ function AppContent({ locale, handleLocaleChange }) {
       render: (text) => <FormattedMessage id={`status.${text}`} defaultMessage={text} />,
     },
     {
+      title: <FormattedMessage id="table.vhost" />,
+      dataIndex: 'vhost',
+      key: 'vhost',
+    },
+    {
       title: <FormattedMessage id="table.queueName" />,
       dataIndex: 'queue_name',
       key: 'queue_name',
@@ -218,7 +223,6 @@ function AppContent({ locale, handleLocaleChange }) {
   };
 
   const onFinish = async (values) => {
-    values.status = values.status ? 'running' : 'stopped';
     let success = false;
 
     if (editingConsumer) {
@@ -321,6 +325,37 @@ function AppContent({ locale, handleLocaleChange }) {
 }
 
 const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
+  const [originalStatus, setOriginalStatus] = useState(null);
+
+  useEffect(() => {
+    if (editingConsumer) {
+      const deathQueueTTL = parseTimeValue(editingConsumer.death_queue?.x_message_ttl || '');
+      const retryMode = parseTimeValue(editingConsumer.retry_mode || '');
+      
+      setOriginalStatus(editingConsumer.status);
+      form.setFieldsValue({
+        ...editingConsumer,
+        status: editingConsumer.status === 'running',
+        'death_queue.x_death_queue_name': editingConsumer.death_queue?.x_death_queue_name,
+        'death_queue.bind_exchange': editingConsumer.death_queue?.bind_exchange,
+        'death_queue.bind_routing_key': editingConsumer.death_queue?.bind_routing_key,
+        death_queue_ttl_hours: deathQueueTTL.hours,
+        death_queue_ttl_minutes: deathQueueTTL.minutes,
+        death_queue_ttl_seconds: deathQueueTTL.seconds,
+        retry_mode_hours: retryMode.hours,
+        retry_mode_minutes: retryMode.minutes,
+        retry_mode_seconds: retryMode.seconds,
+      });
+    } else {
+      setOriginalStatus('running');
+      // Set default values for new consumers
+      form.setFieldsValue({
+        status: true,
+        queue_count: 1  // Set default queue_count to 1
+      });
+    }
+  }, [editingConsumer, form]);
+
   const intl = useIntl();
 
   const formatTimeValue = (hours, minutes, seconds) => {
@@ -342,35 +377,10 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
     };
   };
 
-  useEffect(() => {
-    if (editingConsumer) {
-      const deathQueueTTL = parseTimeValue(editingConsumer.death_queue?.x_message_ttl || '');
-      const retryMode = parseTimeValue(editingConsumer.retry_mode || '');
-      
-      form.setFieldsValue({
-        ...editingConsumer,
-        'death_queue.x_death_queue_name': editingConsumer.death_queue?.x_death_queue_name,
-        'death_queue.bind_exchange': editingConsumer.death_queue?.bind_exchange,
-        'death_queue.bind_routing_key': editingConsumer.death_queue?.bind_routing_key,
-        death_queue_ttl_hours: deathQueueTTL.hours,
-        death_queue_ttl_minutes: deathQueueTTL.minutes,
-        death_queue_ttl_seconds: deathQueueTTL.seconds,
-        retry_mode_hours: retryMode.hours,
-        retry_mode_minutes: retryMode.minutes,
-        retry_mode_seconds: retryMode.seconds,
-      });
-    } else {
-      // Set default values for new consumers
-      form.setFieldsValue({
-        status: true,
-        queue_count: 1  // Set default queue_count to 1
-      });
-    }
-  }, [editingConsumer, form]);
-
   const onFormFinish = (values) => {
     const formattedValues = {
       ...values,
+      status: form.isFieldTouched('status') ? (values.status ? 'running' : 'stopped') : originalStatus,
       death_queue: {
         ...values.death_queue,
         x_message_ttl: formatTimeValue(
@@ -428,29 +438,32 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
             <Input />
           </Form.Item>
           <Form.Item
-            name="status"
-            label={<FormattedMessage id="table.status" />}
-            valuePropName="checked"
-          >
-            <Switch 
-              checkedChildren={<FormattedMessage id="status.running" />} 
-              unCheckedChildren={<FormattedMessage id="status.stopped" />} 
-            />
-          </Form.Item>
-          <Form.Item
             name="queue_name"
             label={<FormattedMessage id="table.queueName" />}
             rules={[{ required: true, message: intl.formatMessage({ id: 'validation.queueName' }) }]}
           >
             <Input />
           </Form.Item>
-          <Form.Item
-            name="exchange_name"
-            label={<FormattedMessage id="table.exchangeName" />}
-            rules={[{ required: true, message: intl.formatMessage({ id: 'validation.exchangeName' }) }]}
-          >
-            <Input />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="exchange_name"
+                label={<FormattedMessage id="table.exchangeName" />}
+                rules={[{ required: true, message: intl.formatMessage({ id: 'validation.exchangeName' }) }]}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="vhost"
+                label={<FormattedMessage id="table.vhost" />}
+                rules={[{ required: true, message: intl.formatMessage({ id: 'validation.vhost' }) }]}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item
             name="routing_key"
             label={<FormattedMessage id="table.routingKey" />}
@@ -473,18 +486,24 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
           >
             <Input />
           </Form.Item>
-          <Form.Item
-            name={['death_queue', 'bind_exchange']}
-            label={<FormattedMessage id="table.deathQueueBindExchange" />}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name={['death_queue', 'bind_routing_key']}
-            label={<FormattedMessage id="table.deathQueueBindRoutingKey" />}
-          >
-            <Input />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name={['death_queue', 'bind_exchange']}
+                label={<FormattedMessage id="table.deathQueueBindExchange" />}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name={['death_queue', 'bind_routing_key']}
+                label={<FormattedMessage id="table.deathQueueBindRoutingKey" />}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item
             label={<FormattedMessage id="table.deathQueueTTL" />}
           >
@@ -495,12 +514,28 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
           >
             <TimeInputs fieldName="retry_mode" />
           </Form.Item>
-          <Form.Item
-            name="queue_count"
-            label={<FormattedMessage id="table.queueCount" />}
-          >
-            <InputNumber min={1} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="queue_count"
+                label={<FormattedMessage id="table.queueCount" />}
+              >
+                <InputNumber min={1} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="status"
+                label={<FormattedMessage id="table.status" />}
+                valuePropName="checked"
+              >
+                <Switch 
+                  checkedChildren={<FormattedMessage id="status.running" />} 
+                  unCheckedChildren={<FormattedMessage id="status.stopped" />} 
+                />
+              </Form.Item>
+            </Col>
+          </Row>
         </Col>
       </Row>
       <Form.Item style={{ textAlign: 'center' }}>

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"go-rabbitmq-consumers/MQServer"
 	"go-rabbitmq-consumers/logger"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -13,8 +14,8 @@ import (
 func UpdateRabbitMQConfig(database *sql.DB, config *MQServer.RabbitMQConfig) error {
 	const FUNCNAME = "UpdateRabbitMQConfig"
 
-	_, err := database.Exec(`UPDATE rabbitmq_config SET host = ?, port = ?, user = ?, password = ?, vhost = ? WHERE id = 1`,
-		config.Host, config.Port, config.User, config.Password, config.Vhost)
+	_, err := database.Exec(`UPDATE rabbitmq_config SET host = ?, port = ?, user = ?, password = ? WHERE id = 1`,
+		config.Host, config.Port, config.User, config.Password)
 	if err != nil {
 		logger.E(FUNCNAME, "failed to update RabbitMQ configuration.", err.Error())
 		return err
@@ -27,9 +28,9 @@ func UpdateRabbitMQConfig(database *sql.DB, config *MQServer.RabbitMQConfig) err
 func FetchRabbitMQConfig(database *sql.DB) (*MQServer.RabbitMQConfig, error) {
 	const FUNCNAME = "FetchRabbitMQConfig"
 
-	row := database.QueryRow("SELECT host, port, user, password, vhost FROM rabbitmq_config WHERE id = 1")
+	row := database.QueryRow("SELECT host, port, user, password FROM rabbitmq_config WHERE id = 1")
 	var config MQServer.RabbitMQConfig
-	err := row.Scan(&config.Host, &config.Port, &config.User, &config.Password, &config.Vhost)
+	err := row.Scan(&config.Host, &config.Port, &config.User, &config.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			logger.E(FUNCNAME, "no RabbitMQ configuration found.")
@@ -42,28 +43,34 @@ func FetchRabbitMQConfig(database *sql.DB) (*MQServer.RabbitMQConfig, error) {
 	return &config, nil
 }
 
-// AddConsumer adds a new consumer to the database
-func AddConsumer(database *sql.DB, consumer *MQServer.ConsumerParams) error {
+// AddConsumer adds a new consumer to the database and returns the new ID
+func AddConsumer(database *sql.DB, consumer *MQServer.ConsumerParams) (int64, error) {
 	const FUNCNAME = "AddConsumer"
 
-	_, err := database.Exec(`INSERT INTO consumers (name, status, queue_name, exchange_name, routing_key, death_queue_name, death_queue_bind_exchange, death_queue_bind_routing_key, death_queue_ttl, callback, retry_mode, queue_count) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		consumer.Name, consumer.Status, consumer.QueueName, consumer.ExchangeName, consumer.RoutingKey, consumer.DeathQueue.QueueName, consumer.DeathQueue.BindExchange, consumer.DeathQueue.BindRoutingKey, consumer.DeathQueue.TTL, consumer.Callback, consumer.RetryMode, consumer.QueueCount)
+	result, err := database.Exec(`INSERT INTO consumers (name, status, queue_name, exchange_name, routing_key, death_queue_name, death_queue_bind_exchange, death_queue_bind_routing_key, death_queue_ttl, callback, retry_mode, queue_count, vhost) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		consumer.Name, consumer.Status, consumer.QueueName, consumer.ExchangeName, consumer.RoutingKey, consumer.DeathQueue.QueueName, consumer.DeathQueue.BindExchange, consumer.DeathQueue.BindRoutingKey, consumer.DeathQueue.TTL, consumer.Callback, consumer.RetryMode, consumer.QueueCount, consumer.VHost)
 	if err != nil {
 		logger.E(FUNCNAME, "failed to add consumer.", err.Error())
-		return err
+		return 0, err
 	}
 
-	return nil
+	id, err := result.LastInsertId()
+	if err != nil {
+		logger.E(FUNCNAME, "failed to get last insert ID.", err.Error())
+		return 0, err
+	}
+
+	return id, nil
 }
 
 // EditConsumer updates an existing consumer in the database
 func EditConsumer(database *sql.DB, consumer *MQServer.ConsumerParams) error {
 	const FUNCNAME = "EditConsumer"
 
-	_, err := database.Exec(`UPDATE consumers SET name = ?, status = ?, queue_name = ?, exchange_name = ?, routing_key = ?, death_queue_name = ?, death_queue_bind_exchange = ?, death_queue_bind_routing_key = ?, death_queue_ttl = ?, callback = ?, retry_mode = ?, queue_count = ? 
+	_, err := database.Exec(`UPDATE consumers SET name = ?, status = ?, queue_name = ?, exchange_name = ?, routing_key = ?, death_queue_name = ?, death_queue_bind_exchange = ?, death_queue_bind_routing_key = ?, death_queue_ttl = ?, callback = ?, retry_mode = ?, queue_count = ?, vhost = ? 
 		WHERE id = ?`,
-		consumer.Name, consumer.Status, consumer.QueueName, consumer.ExchangeName, consumer.RoutingKey, consumer.DeathQueue.QueueName, consumer.DeathQueue.BindExchange, consumer.DeathQueue.BindRoutingKey, consumer.DeathQueue.TTL, consumer.Callback, consumer.RetryMode, consumer.QueueCount, consumer.Id)
+		consumer.Name, consumer.Status, consumer.QueueName, consumer.ExchangeName, consumer.RoutingKey, consumer.DeathQueue.QueueName, consumer.DeathQueue.BindExchange, consumer.DeathQueue.BindRoutingKey, consumer.DeathQueue.TTL, consumer.Callback, consumer.RetryMode, consumer.QueueCount, consumer.VHost, consumer.Id)
 	if err != nil {
 		logger.E(FUNCNAME, "failed to edit consumer.", err.Error())
 		return err
@@ -133,7 +140,6 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			Port     int    `json:"port"`
 			User     string `json:"user"`
 			Password string `json:"password"`
-			Vhost    string `json:"vhost"`
 		}
 		if err := c.BodyParser(&config); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
@@ -143,7 +149,6 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			Port:     config.Port,
 			User:     config.User,
 			Password: config.Password,
-			Vhost:    config.Vhost,
 		}
 		if err := UpdateRabbitMQConfig(db, &rabbitMQConfig); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -169,6 +174,7 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 				&consumer.QueueName,
 				&consumer.ExchangeName,
 				&consumer.RoutingKey,
+				&consumer.VHost,
 				&consumer.DeathQueue.QueueName,
 				&consumer.DeathQueue.BindExchange,
 				&consumer.DeathQueue.BindRoutingKey,
@@ -213,6 +219,7 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			} `json:"death_queue"`
 			QueueCount uint64 `json:"queue_count"`
 			RetryMode  string `json:"retry_mode"`
+			Vhost      string `json:"vhost"`
 		}
 
 		if err := c.BodyParser(&consumerData); err != nil {
@@ -235,6 +242,7 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			},
 			QueueCount: consumerData.QueueCount,
 			RetryMode:  consumerData.RetryMode,
+			VHost:      consumerData.Vhost,
 		}
 
 		if err := EditConsumer(db, &consumer); err != nil {
@@ -296,6 +304,7 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			} `json:"death_queue"`
 			QueueCount uint64 `json:"queue_count"`
 			RetryMode  string `json:"retry_mode"`
+			Vhost      string `json:"vhost"`
 		}
 
 		if err := c.BodyParser(&consumerData); err != nil {
@@ -317,15 +326,21 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			},
 			QueueCount: consumerData.QueueCount,
 			RetryMode:  consumerData.RetryMode,
+			VHost:      consumerData.Vhost,
 		}
 
-		if err := AddConsumer(db, &consumer); err != nil {
+		id, err := AddConsumer(db, &consumer)
+		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 
+		consumer.Id = strconv.FormatInt(id, 10)
 		ConsumerNotificationChan <- ConsumerNotification{Type: "added", Consumer: consumer}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "Consumer created successfully"})
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+			"message": "Consumer created successfully",
+			"id":      id,
+		})
 	})
 }
 
@@ -349,6 +364,7 @@ func FetchConsumer(database *sql.DB, consumerID string) (*MQServer.ConsumerParam
 		&consumer.Callback,
 		&consumer.RetryMode,
 		&consumer.QueueCount,
+		&consumer.VHost,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

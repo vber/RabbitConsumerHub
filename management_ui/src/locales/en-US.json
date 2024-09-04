@@ -11,6 +11,7 @@
   "status.inactive": "Inactive",
   "status.running": "Running",
   "status.stopped": "Stopped",
+  "table.vhost": "VHost",
   "table.routingKey": "Routing Key",
   "table.deathQueueName": "Death Queue Name",
   "table.deathQueueBindExchange": "Death Queue Bind Exchange",

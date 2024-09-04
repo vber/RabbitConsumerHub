@@ -15,7 +15,7 @@ const Settings = () => {
         port: data.PORT,
         user: data.USERNAME,
         password: data.PASSWORD,
-        vhost: data.VHOST,
+        // Removed vhost from here
       });
     } catch (error) {
       message.error(intl.formatMessage({ id: 'settings.fetchError' }));
@@ -28,12 +28,12 @@ const Settings = () => {
 
   const onFinish = async (values) => {
     console.log(JSON.stringify({
-        host: values.host,
-        port: values.port,
-        user: values.user,
-        password: values.password,
-        vhost: values.vhost,
-      }))
+      host: values.host,
+      port: values.port,
+      user: values.user,
+      password: values.password,
+      // Removed vhost from here
+    }))
 
     try {
       const response = await fetch('http://localhost:1981/rabbitmq-config', {
@@ -46,7 +46,7 @@ const Settings = () => {
           port: values.port,
           user: values.user,
           password: values.password,
-          vhost: values.vhost,
+          // Removed vhost from here
         }),
       });
       if (response.ok) {
@@ -73,13 +73,6 @@ const Settings = () => {
         name="port"
         label={<FormattedMessage id="settings.port" />}
         rules={[{ required: true, message: intl.formatMessage({ id: 'validation.port' }) }]}
-      >
-        <Input />
-      </Form.Item>
-      <Form.Item
-        name="vhost"
-        label={<FormattedMessage id="settings.vhost" />}
-        rules={[{ required: true, message: intl.formatMessage({ id: 'validation.vhost' }) }]}
       >
         <Input />
       </Form.Item>

@@ -23,17 +23,17 @@ func InitDB(dbPath string) (*sql.DB, error) {
 			id INTEGER PRIMARY KEY,
 			host TEXT,
 			port INTEGER,
-			vhost TEXT,
 			user TEXT,
 			password TEXT
 		);`,
 		`CREATE TABLE IF NOT EXISTS consumers (
-			id INTEGER PRIMARY KEY,
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT,
 			status TEXT,
 			queue_name TEXT,
 			exchange_name TEXT,
 			routing_key TEXT,
+			vhost TEXT DEFAULT '/',
 			death_queue_name TEXT DEFAULT '',
 			death_queue_bind_exchange TEXT DEFAULT '',
 			death_queue_bind_routing_key TEXT DEFAULT '',
@@ -73,8 +73,8 @@ func insertDefaultData(db *sql.DB) {
 		return
 	}
 	if count == 0 {
-		_, err = db.Exec(`INSERT INTO rabbitmq_config (id, host, port, vhost, user, password) 
-                          VALUES (1, 'localhost', 5672, '/', 'guest', 'guest')`)
+		_, err = db.Exec(`INSERT INTO rabbitmq_config (id, host, port, user, password) 
+                          VALUES (1, 'localhost', 5672, 'admin', 'password')`)
 		if err != nil {
 			logger.E(FUNCNAME, "failed to insert default RabbitMQ configuration.", err.Error())
 		}
@@ -115,7 +115,7 @@ func FetchRabbitMQConfig(db *sql.DB) (*MQServer.RabbitMQConfig, error) {
 func FetchConsumersConfig(db *sql.DB) (*MQServer.RabbitMQConsumers, error) {
 	const FUNCNAME = "FetchConsumersConfig"
 
-	rows, err := db.Query("SELECT id, name, status, queue_name, exchange_name, routing_key, death_queue_name, death_queue_bind_exchange, death_queue_bind_routing_key, death_queue_ttl, callback, retry_mode, queue_count FROM consumers")
+	rows, err := db.Query("SELECT id, name, status, queue_name, exchange_name, routing_key, vhost, death_queue_name, death_queue_bind_exchange, death_queue_bind_routing_key, death_queue_ttl, callback, retry_mode, queue_count FROM consumers")
 	if err != nil {
 		logger.E(FUNCNAME, "failed to query consumers from SQLite database.", err.Error())
 		return nil, err
@@ -127,7 +127,7 @@ func FetchConsumersConfig(db *sql.DB) (*MQServer.RabbitMQConsumers, error) {
 		var consumer MQServer.ConsumerParams
 		var deathQueueName, deathQueueBindExchange, deathQueueBindRoutingKey, retryMode sql.NullString
 		var deathQueueTTL string
-		err = rows.Scan(&consumer.Id, &consumer.Name, &consumer.Status, &consumer.QueueName, &consumer.ExchangeName, &consumer.RoutingKey, &deathQueueName, &deathQueueBindExchange, &deathQueueBindRoutingKey, &deathQueueTTL, &consumer.Callback, &retryMode, &consumer.QueueCount)
+		err = rows.Scan(&consumer.Id, &consumer.Name, &consumer.Status, &consumer.QueueName, &consumer.ExchangeName, &consumer.RoutingKey, &consumer.VHost, &deathQueueName, &deathQueueBindExchange, &deathQueueBindRoutingKey, &deathQueueTTL, &consumer.Callback, &retryMode, &consumer.QueueCount)
 		if err != nil {
 			logger.E(FUNCNAME, "failed to scan consumer row.", err.Error())
 			return nil, err
@@ -167,8 +167,8 @@ func UpdateRabbitMQConfig(db *sql.DB, config MQServer.RabbitMQConfig) error {
 	// Log the values of Host and User before updating
 	logger.I(FUNCNAME, fmt.Sprintf("Updating RabbitMQ config: Host=%s, User=%s", config.Host, config.User))
 
-	_, err := db.Exec(`UPDATE rabbitmq_config SET host = ?, port = ?, vhost = ?, user = ?, password = ? WHERE id = 1`,
-		config.Host, config.Port, config.Vhost, config.User, config.Password)
+	_, err := db.Exec(`UPDATE rabbitmq_config SET host = ?, port = ?, user = ?, password = ? WHERE id = 1`,
+		config.Host, config.Port, config.User, config.Password)
 	if err != nil {
 		logger.E(FUNCNAME, "failed to update RabbitMQ configuration.", err.Error())
 		return err

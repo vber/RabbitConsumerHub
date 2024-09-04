@@ -11,7 +11,7 @@ var (
 	conn *amqp.Connection
 )
 
-func CreateDeathQueue(config *RabbitMQConfig, v map[string]interface{}) (e error) {
+func CreateDeathQueue(config *RabbitMQConfig, vhost string, v map[string]interface{}) (e error) {
 	var (
 		x_death_queue_name        string
 		x_dead_letter_exchange    string
@@ -40,7 +40,7 @@ func CreateDeathQueue(config *RabbitMQConfig, v map[string]interface{}) (e error
 	bind_routing_key = v["bind_routing_key"].(string)
 
 	if conn, err = amqp.DialConfig(fmt.Sprintf("amqp://%s:%s@%s:5672", config.User, config.Password, config.Host), amqp.Config{
-		Vhost: config.Vhost,
+		Vhost: vhost,
 	}); err != nil {
 		return err
 	}

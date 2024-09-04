@@ -39,6 +39,11 @@ func init_config() {
 		logger.E(FUNCNAME, "failed to fetch RabbitMQ configuration.", err.Error())
 		panic(err)
 	}
+	if RabbitMQConf == nil {
+		logger.E(FUNCNAME, "RabbitMQConf is nil after fetching")
+		panic("RabbitMQConf is nil")
+	}
+	logger.I(FUNCNAME, "RabbitMQConf successfully fetched")
 
 	ConsumersConf, err = db.FetchConsumersConfig(database)
 	if err != nil {
@@ -60,13 +65,18 @@ func init() {
 
 func start_consumer(consumer_config MQServer.ConsumerParams) {
 	const FUNCNAME = "start_consumer"
+	if RabbitMQConf == nil {
+		logger.E(FUNCNAME, "RabbitMQConf is nil")
+		return
+	}
+
 	if consumer_config.Status != "running" {
-		logger.I(FUNCNAME, fmt.Sprintf("consumer would not start due to staus=%s,queuename=%s", consumer_config.Status, consumer_config.QueueName))
+		logger.I(FUNCNAME, fmt.Sprintf("consumer would not start due to status=%s,queuename=%s", consumer_config.Status, consumer_config.QueueName))
 		return
 	}
 
 	if consumer_config.DeathQueue.QueueName != "" {
-		err := MQServer.CreateDeathQueue(RabbitMQConf, map[string]interface{}{
+		err := MQServer.CreateDeathQueue(RabbitMQConf, consumer_config.VHost, map[string]interface{}{
 			"x_death_queue_name":        consumer_config.DeathQueue.QueueName,
 			"x_dead_letter_exchange":    consumer_config.ExchangeName,
 			"x_dead_letter_routing_key": consumer_config.RoutingKey,
@@ -82,6 +92,11 @@ func start_consumer(consumer_config MQServer.ConsumerParams) {
 	}
 
 	mq_server := MQServer.NewRabbitMQServer(RabbitMQConf)
+	if mq_server == nil {
+		logger.E(FUNCNAME, "Failed to create RabbitMQServer instance")
+		return
+	}
+
 	mq_server.DoError = func(queueData string, consumer *MQServer.ConsumerParams) {
 		r := retry.RetryURL{
 			QueueData: queueData,
@@ -96,7 +111,7 @@ func start_consumer(consumer_config MQServer.ConsumerParams) {
 	mq_server.DoSuccess = func(retry_id string) {}
 
 	for {
-		if mq_server.Connect() {
+		if mq_server.Connect(consumer_config.VHost) {
 			logger.I("main", "RabbitMQ server is connected.")
 			break
 		} else {
@@ -124,28 +139,35 @@ func handleConsumerNotifications() {
 	for notification := range ConsumerNotificationChan {
 		switch notification.Type {
 		case "added":
+			logger.I("main", fmt.Sprintf("add consumer. id:%s", notification.Consumer.Id))
 			ConsumersMutex.Lock()
 			start_consumer(notification.Consumer)
 			ConsumersMutex.Unlock()
 		case "updated":
+			logger.I("main", fmt.Sprintf("update consumer. id:%s", notification.Consumer.Id))
 			ConsumersMutex.Lock()
+
 			if client, exists := ConsumersPool[notification.Consumer.Id]; exists {
-				if client.Consumer.Status == "running" {
-					start_consumer(notification.Consumer)
-				} else if client.Consumer.Status == "stopped" {
-					client.Stop()
+				if notification.Consumer.Status == "stopped" {
+					client.StopConsumer()
 					delete(ConsumersPool, notification.Consumer.Id)
 				}
 			}
 
+			if notification.Consumer.Status == "running" {
+				start_consumer(notification.Consumer)
+			}
+
 			ConsumersMutex.Unlock()
 		case "deleted":
+			logger.I("main", fmt.Sprintf("delete consumer. id:%s", notification.Consumer.Id))
 			ConsumersMutex.Lock()
 			if client, exists := ConsumersPool[notification.Consumer.Id]; exists {
-				client.Stop()
+				logger.I("main", fmt.Sprintf("found delete consumer. id:%s", notification.Consumer.Id))
 				if err := client.DeleteQueue(); err != nil {
 					logger.E("main", fmt.Sprintf("Failed to delete queue %s: %s", client.Consumer.QueueName, err.Error()))
 				}
+				client.StopConsumer()
 				delete(ConsumersPool, notification.Consumer.Id)
 			}
 			ConsumersMutex.Unlock()
@@ -173,13 +195,6 @@ func main() {
 	// Register API routes
 	api.RegisterRoutes(app, database)
 
-	// Start Fiber app
-	logger.I("main", "Starting API server on port 1981")
-	if err := app.Listen(":1981"); err != nil {
-		logger.E("main", "failed to start API server.", err.Error())
-		panic(err)
-	}
-
 	go func() {
 		for _, consumer := range ConsumersConf.Consumers {
 			start_consumer(consumer)
@@ -187,6 +202,13 @@ func main() {
 	}()
 
 	go handleConsumerNotifications()
+
+	// Start Fiber app
+	logger.I("main", "Starting API server on port 1981")
+	if err := app.Listen(":1981"); err != nil {
+		logger.E("main", "failed to start API server.", err.Error())
+		panic(err)
+	}
 
 	forever := make(chan bool)
 	<-forever
