@@ -88,5 +88,7 @@
   "error.failedToDelete": "Failed to delete failed callback",
   "error.failedToBulkretry": "Failed to initiate bulk retry",
   "error.failedToBulkdelete": "Failed to initiate bulk delete",
+  "error.connectionFailed":"Connection failed.",
+  "error.checkSettings": "Cannot connect to RabbitMQ Server, please check the settings.",
   "warning.noItemsSelected": "No items selected"
 }

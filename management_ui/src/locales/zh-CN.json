@@ -61,6 +61,8 @@
   "error.failedToAddConsumer": "添加消费者失败",
   "error.failedToDeleteConsumer": "删除消费者失败",
   "error.failedToUpdateConsumer": "更新消费者失败",
+  "error.connectionFailed":"连接失败。",
+  "error.checkSettings": "无法连接到RabbitMQ服务器，请检查设置。",
   "button.restart": "重启",
   "success.consumerAdded": "消费者添加成功",
   "success.consumerDeleted": "消费者删除成功",

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Table, Button, Select, message, Modal, Form, Input, InputNumber, Switch, Row, Col, Typography, Popconfirm } from 'antd';
 import { SettingOutlined, PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { IntlProvider, FormattedMessage, useIntl } from 'react-intl';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import enUS from './locales/en-US.json';
 import zhCN from './locales/zh-CN.json';
 import 'antd/dist/reset.css';
@@ -40,12 +40,31 @@ function AppContent({ locale, handleLocaleChange }) {
   const [isAdding, setIsAdding] = useState(false);
   const [form] = Form.useForm();
   const intl = useIntl();
+  const navigate = useNavigate();
+  const [isRabbitMQConnected, setIsRabbitMQConnected] = useState(true);
 
   const hideSettingsButton = window.location.pathname === '/settings';
 
   useEffect(() => {
+    checkRabbitMQConnection();
     fetchConsumers();
   }, []);
+
+  const checkRabbitMQConnection = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/check-connection`);
+      if (!response.ok) {
+        throw new Error('Connection failed');
+      }
+      setIsRabbitMQConnected(true);
+    } catch (error) {
+      setIsRabbitMQConnected(false);
+      Modal.error({
+        title: intl.formatMessage({ id: 'error.connectionFailed' }),
+        content: intl.formatMessage({ id: 'error.checkSettings' }),
+      });
+    }
+  };
 
   const fetchConsumers = async () => {
     try {
@@ -327,7 +346,12 @@ function AppContent({ locale, handleLocaleChange }) {
                 >
                   <FormattedMessage id="app.failedCallbacks" />
                 </Button>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal()}>
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />} 
+                  onClick={() => showModal()}
+                  disabled={!isRabbitMQConnected}
+                >
                   <FormattedMessage id="app.addConsumer" />
                 </Button>
               </div>

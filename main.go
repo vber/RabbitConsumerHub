@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"go-rabbitmq-consumers/MQServer"
-	retry "go-rabbitmq-consumers/Retry"
 	"go-rabbitmq-consumers/api"
 	"go-rabbitmq-consumers/db"
 	"go-rabbitmq-consumers/logger"
@@ -100,15 +99,7 @@ func start_consumer(consumer_config models.ConsumerParams) {
 	}
 
 	mq_server.DoError = func(queueData string, consumer *models.ConsumerParams) {
-		r := retry.RetryURL{
-			QueueData: queueData,
-			ReqURL:    consumer.Callback,
-			RetryMode: consumer.RetryMode,
-			RetryAPI:  &RetryServiceURL,
-		}
-		if err := r.RetryRequest(); err != nil {
-			logger.E("Do Error:", err)
-		}
+
 	}
 	mq_server.DoSuccess = func(retry_id string) {}
 
