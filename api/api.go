@@ -2,10 +2,13 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"go-rabbitmq-consumers/logger"
 	"go-rabbitmq-consumers/models"
+	"go-rabbitmq-consumers/utils"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -115,6 +118,132 @@ func DisableConsumer(database *sql.DB, consumerID string) error {
 	if err != nil {
 		logger.E(FUNCNAME, "failed to disable consumer.", err.Error())
 		return err
+	}
+
+	return nil
+}
+
+// FailedCallback represents a failed callback in the database
+type FailedCallback struct {
+	ID              int64     `json:"id"`
+	QueueName       string    `json:"queue_name"`
+	RequestData     string    `json:"request_data"`
+	ResponseCode    int       `json:"response_code"`
+	ResponseContent string    `json:"response_content"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// FetchFailedCallbacks fetches all failed callbacks from the database
+func FetchFailedCallbacks(database *sql.DB) ([]FailedCallback, error) {
+	const FUNCNAME = "FetchFailedCallbacks"
+
+	rows, err := database.Query("SELECT id, queue_name, request_data, response_code, response_content, created_at FROM url_failed ORDER BY created_at DESC")
+	if err != nil {
+		logger.E(FUNCNAME, "failed to query failed callbacks.", err.Error())
+		return nil, err
+	}
+	defer rows.Close()
+
+	var callbacks []FailedCallback
+	for rows.Next() {
+		var callback FailedCallback
+		err := rows.Scan(&callback.ID, &callback.QueueName, &callback.RequestData, &callback.ResponseCode, &callback.ResponseContent, &callback.CreatedAt)
+		if err != nil {
+			logger.E(FUNCNAME, "failed to scan failed callback.", err.Error())
+			return nil, err
+		}
+		callbacks = append(callbacks, callback)
+	}
+
+	return callbacks, nil
+}
+
+// RetryFailedCallback retries a failed callback
+func RetryFailedCallback(database *sql.DB, id int64) error {
+	const FUNCNAME = "RetryFailedCallback"
+
+	// Fetch the failed request details from the database
+	var requestURL, requestData, responseContent string
+	var responseCode int
+	var queueName string
+	err := database.QueryRow("SELECT request_url, request_data, response_code, response_content, queue_name FROM url_failed WHERE id = ?", id).Scan(&requestURL, &requestData, &responseCode, &responseContent, &queueName)
+	if err != nil {
+		logger.E(FUNCNAME, "failed to fetch failed request details", err.Error())
+		return err
+	}
+
+	// Delete the record first
+	_, delErr := database.Exec("DELETE FROM url_failed WHERE id = ?", id)
+	if delErr != nil {
+		logger.E(FUNCNAME, "failed to delete record", delErr.Error())
+		return delErr
+	}
+
+	// Start a goroutine for retry logic
+	go func() {
+		retryIntervals := []time.Duration{5 * time.Second, 1 * time.Minute, 5 * time.Minute}
+		for _, interval := range retryIntervals {
+			time.Sleep(interval)
+			body, retryErr, statusCode := utils.HttpRequest(utils.HTTP_POST, nil, requestURL, requestData)
+			if retryErr == nil && statusCode == 200 {
+				var cbData models.CallbackData
+				if json.Unmarshal([]byte(body), &cbData) == nil && cbData.ErrorCode == 0 {
+					// Retry successful
+					logger.I(FUNCNAME, "retry successful for id", id)
+					return
+				}
+			}
+			// Update response content and code for potential re-insertion
+			responseContent = body
+			responseCode = statusCode
+			// Log retry attempt
+			logger.I(FUNCNAME, fmt.Sprintf("retry attempt failed for id %d, status: %d", id, statusCode))
+		}
+
+		// All retries failed, re-insert the failed request
+		_, err := database.Exec(`
+			INSERT INTO url_failed (request_url, request_data, response_code, response_content, queue_name)
+			VALUES (?, ?, ?, ?, ?)
+		`, requestURL, requestData, responseCode, responseContent, queueName)
+		if err != nil {
+			logger.E(FUNCNAME, "failed to re-insert failed request", err.Error())
+		}
+
+		logger.E(FUNCNAME, "all retry attempts failed for id", id)
+	}()
+
+	return nil
+}
+
+// DeleteFailedCallback deletes a failed callback from the database
+func DeleteFailedCallback(database *sql.DB, id int64) error {
+	const FUNCNAME = "DeleteFailedCallback"
+
+	_, err := database.Exec("DELETE FROM url_failed WHERE id = ?", id)
+	if err != nil {
+		logger.E(FUNCNAME, "failed to delete callback.", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+// BulkActionFailedCallbacks performs a bulk action on multiple failed callbacks
+func BulkActionFailedCallbacks(database *sql.DB, ids []int64, action string) error {
+	const FUNCNAME = "BulkActionFailedCallbacks"
+
+	for _, id := range ids {
+		var err error
+		if action == "retry" {
+			err = RetryFailedCallback(database, id)
+		} else if action == "delete" {
+			err = DeleteFailedCallback(database, id)
+		} else {
+			return fmt.Errorf("unknown action: %s", action)
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -379,6 +508,50 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 		defer conn.Close()
 
 		return c.JSON(fiber.Map{"message": "Connection successful"})
+	})
+
+	app.Get("/failed-callbacks", func(c *fiber.Ctx) error {
+		callbacks, err := FetchFailedCallbacks(db)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(callbacks)
+	})
+
+	app.Post("/failed-callbacks/:id/retry", func(c *fiber.Ctx) error {
+		id, err := c.ParamsInt("id")
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
+		}
+		if err := RetryFailedCallback(db, int64(id)); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(fiber.Map{"message": "Retry process initiated successfully"})
+	})
+
+	app.Delete("/failed-callbacks/:id", func(c *fiber.Ctx) error {
+		id, err := c.ParamsInt("id")
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
+		}
+		if err := DeleteFailedCallback(db, int64(id)); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(fiber.Map{"message": "Callback deleted successfully"})
+	})
+
+	app.Post("/failed-callbacks/bulk", func(c *fiber.Ctx) error {
+		var request struct {
+			IDs    []int64 `json:"ids"`
+			Action string  `json:"action"`
+		}
+		if err := c.BodyParser(&request); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+		if err := BulkActionFailedCallbacks(db, request.IDs, request.Action); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(fiber.Map{"message": "Bulk action completed successfully"})
 	})
 }
 

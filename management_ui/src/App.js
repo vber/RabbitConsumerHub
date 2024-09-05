@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Table, Button, Select, message, Modal, Form, Input, InputNumber, Switch, Row, Col, Typography, Popconfirm } from 'antd';
-import { SettingOutlined, PlusOutlined } from '@ant-design/icons';
+import { SettingOutlined, PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { IntlProvider, FormattedMessage, useIntl } from 'react-intl';
 import { Route, Routes } from 'react-router-dom';
 import enUS from './locales/en-US.json';
@@ -8,6 +8,7 @@ import zhCN from './locales/zh-CN.json';
 import 'antd/dist/reset.css';
 import './App.css';
 import Settings from './Settings';
+import FailedCallbacks from './FailedCallbacks';
 
 const { Header, Content, Footer } = Layout;
 const { Option } = Select;
@@ -318,7 +319,14 @@ function AppContent({ locale, handleLocaleChange }) {
         <Routes>
           <Route path="/" element={
             <div className="site-layout-content">
-              <div style={{ marginBottom: 16, textAlign: 'right' }}>
+              <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+                <Button 
+                  type="primary" 
+                  icon={<ExclamationCircleOutlined />} 
+                  onClick={() => window.open('/failed-callbacks', '_blank')}
+                >
+                  <FormattedMessage id="app.failedCallbacks" />
+                </Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal()}>
                   <FormattedMessage id="app.addConsumer" />
                 </Button>
@@ -327,6 +335,7 @@ function AppContent({ locale, handleLocaleChange }) {
             </div>
           } />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/failed-callbacks" element={<FailedCallbacks />} />
         </Routes>
       </Content>
       <Footer style={{ textAlign: 'center' }}>RabbitMQ Consumers Hub ©2024</Footer>

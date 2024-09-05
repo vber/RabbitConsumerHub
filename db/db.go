@@ -55,7 +55,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 			request_data TEXT,
 			response_code INTEGER,
 			response_content TEXT,
-			response_body TEXT,
+			queue_name TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);`,
 	}
@@ -189,13 +189,13 @@ func UpdateRabbitMQConfig(db *sql.DB, config models.RabbitMQConfig) error {
 	return nil
 }
 
-func SaveFailedRequest(requestURL, requestData, responseBody string, statusCode int) error {
+func SaveFailedRequest(requestURL, requestData, responseBody string, statusCode int, queueName string) error {
 	const FUNCNAME = "SaveFailedRequest"
 
 	_, err := DB.Exec(`
-		INSERT INTO url_failed (request_url, request_data, response_code, response_content, response_body)
-		VALUES (?, ?, ?, ?, ?)
-	`, requestURL, requestData, statusCode, responseBody, responseBody)
+		INSERT INTO url_failed (request_url, request_data, response_code, response_content, queue_name)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, requestURL, requestData, statusCode, responseBody, queueName)
 
 	if err != nil {
 		logger.E(FUNCNAME, "Failed to save failed request", err.Error())

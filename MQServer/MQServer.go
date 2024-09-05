@@ -140,7 +140,7 @@ func (mq *RabbitMQServer) validateCallbackResult(queuedata string, responseBody 
 		}
 
 		// All retries failed, save to database
-		if err := db.SaveFailedRequest(mq.Consumer.Callback, queuedata, responseBody, status_code); err != nil {
+		if err := db.SaveFailedRequest(mq.Consumer.Callback, queuedata, responseBody, status_code, mq.Consumer.QueueName); err != nil {
 			logger.E("validateCallbackResult", "Failed to save failed request", err.Error())
 			return
 		}
