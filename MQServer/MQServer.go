@@ -10,65 +10,27 @@ import (
 	"go-rabbitmq-consumers/utils"
 	"time"
 
+	"go-rabbitmq-consumers/db"
+	"go-rabbitmq-consumers/models"
+
 	"github.com/streadway/amqp"
 )
 
 var ()
 
-type RabbitMQConfig struct {
-	Host     string `json:"HOSTNAME"`
-	Port     int    `json:"PORT"`
-	User     string `json:"USERNAME"`
-	Password string `json:"PASSWORD"`
-}
-
-type DeathQueueInfo struct {
-	QueueName      string `json:"x_death_queue_name"`
-	TTL            string `json:"x_message_ttl"`
-	BindExchange   string `json:"bind_exchange"`
-	BindRoutingKey string `json:"bind_routing_key"`
-}
-
-type ConsumerParams struct {
-	Id               string         `json:"id"`
-	Name             string         `json:"name"`
-	Description      string         `json:"descripton"`
-	AutoDecodeBase64 bool           `json:"auto_decode_base64"`
-	Callback         string         `json:"callback"`
-	ExchangeName     string         `json:"exchange_name"`
-	RoutingKey       string         `json:"routing_key"`
-	QueueName        string         `json:"queue_name"`
-	VHost            string         `json:"vhost"`
-	Status           string         `json:"status"`
-	DingRobotToken   string         `json:"dingrobot_token"`
-	RetryMode        string         `json:"retry_mode"`
-	QueueCount       uint64         `json:"queue_count"`
-	DeathQueue       DeathQueueInfo `json:"death_queue"`
-	Qos              int            `json:"qos"`
-}
-
-type CallbackData struct {
-	ErrorCode int64  `json:"error_code"`
-	ErrorMsg  string `json:"error_msg"`
-}
-
-type RabbitMQConsumers struct {
-	Consumers []ConsumerParams `json:"consumers"`
-}
-
 type RabbitMQServer struct {
 	Connnection  *amqp.Connection
-	ServerConfig *RabbitMQConfig
+	ServerConfig *models.RabbitMQConfig
 	RetryChan    chan error // 重试通道
 	Connected    chan bool
 	Stop         context.CancelFunc
 	StopCtx      context.Context
-	Consumer     *ConsumerParams
+	Consumer     *models.ConsumerParams
 	DoError      ErrorHandler
 	DoSuccess    SuccessHandler
 }
 
-type ErrorHandler func(queueData string, consumer *ConsumerParams)
+type ErrorHandler func(queueData string, consumer *models.ConsumerParams)
 type SuccessHandler func(retry_id string)
 
 func init() {
@@ -99,7 +61,7 @@ func (mq *RabbitMQServer) ReConnect() {
 	}
 }
 
-func NewRabbitMQServer(conf *RabbitMQConfig) *RabbitMQServer {
+func NewRabbitMQServer(conf *models.RabbitMQConfig) *RabbitMQServer {
 	if conf == nil {
 		logger.E("NewRabbitMQServer", "RabbitMQConfig is nil")
 		return nil
@@ -140,15 +102,15 @@ func (mq *RabbitMQServer) StopConsumer() {
 	mq.Stop()
 }
 
-func (mq *RabbitMQServer) validateCallbackResult(queuedata string, data string, status_code int) {
+func (mq *RabbitMQServer) validateCallbackResult(queuedata string, responseBody string, status_code int) {
 	var (
 		err         error
-		cb_data     CallbackData
+		cb_data     models.CallbackData
 		bErrorFound bool
 	)
-	cb_data = CallbackData{}
+	cb_data = models.CallbackData{}
 
-	if err = json.Unmarshal([]byte(data), &cb_data); err != nil {
+	if err = json.Unmarshal([]byte(responseBody), &cb_data); err != nil {
 		logger.E("validateCallbackResult", err.Error())
 	}
 
@@ -163,14 +125,29 @@ func (mq *RabbitMQServer) validateCallbackResult(queuedata string, data string, 
 	}
 
 	if bErrorFound {
-		if mq.Consumer.RetryMode != "" && mq.DoError != nil {
-			// 重试机制启动
-			mq.DoError(queuedata, mq.Consumer)
+		retryIntervals := []time.Duration{5 * time.Second, 1 * time.Minute, 5 * time.Minute}
+		for _, interval := range retryIntervals {
+			time.Sleep(interval)
+			body, retryErr, retryStatusCode := utils.HttpRequest(utils.HTTP_POST, nil, mq.Consumer.Callback, queuedata)
+			if retryErr == nil && retryStatusCode == 200 {
+				var retryCbData models.CallbackData
+				if json.Unmarshal([]byte(body), &retryCbData) == nil && retryCbData.ErrorCode == 0 {
+					return // Retry successful
+				}
+			}
+			responseBody = body           // Update responseBody with the latest retry response
+			status_code = retryStatusCode // Update status_code with the latest retry status
+		}
+
+		// All retries failed, save to database
+		if err := db.SaveFailedRequest(mq.Consumer.Callback, queuedata, responseBody, status_code); err != nil {
+			logger.E("validateCallbackResult", "Failed to save failed request", err.Error())
+			return
 		}
 	}
 }
 
-func (mq *RabbitMQServer) StartConsumer(params *ConsumerParams) error {
+func (mq *RabbitMQServer) StartConsumer(params *models.ConsumerParams) error {
 	var (
 		ch  *amqp.Channel
 		q   amqp.Queue

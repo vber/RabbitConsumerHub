@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"go-rabbitmq-consumers/models"
+
 	"github.com/streadway/amqp"
 )
 
@@ -11,7 +13,7 @@ var (
 	conn *amqp.Connection
 )
 
-func CreateDeathQueue(config *RabbitMQConfig, vhost string, v map[string]interface{}) (e error) {
+func CreateDeathQueue(config *models.RabbitMQConfig, vhost string, v map[string]interface{}) (e error) {
 	var (
 		x_death_queue_name        string
 		x_dead_letter_exchange    string

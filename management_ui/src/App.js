@@ -187,11 +187,6 @@ function AppContent({ locale, handleLocaleChange }) {
       key: 'callback',
     },
     {
-      title: <FormattedMessage id="table.retryMode" />,
-      dataIndex: 'retry_mode',
-      key: 'retry_mode',
-    },
-    {
       title: <FormattedMessage id="table.queueCount" />,
       dataIndex: 'queue_count',
       key: 'queue_count',
@@ -347,7 +342,17 @@ function AppContent({ locale, handleLocaleChange }) {
         onCancel={handleCancel}
         footer={null}
         width={800}
-        styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}
+        style={{ top: 0 }}
+        modalRender={(modal) => (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100vh'
+          }}>
+            {modal}
+          </div>
+        )}
       >
         <ConsumerForm form={form} onFinish={onFinish} editingConsumer={editingConsumer} />
       </Modal>
@@ -361,7 +366,6 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
   useEffect(() => {
     if (editingConsumer) {
       const deathQueueTTL = parseTimeValue(editingConsumer.death_queue?.x_message_ttl || '');
-      const retryMode = parseTimeValue(editingConsumer.retry_mode || '');
       
       setOriginalStatus(editingConsumer.status);
       form.setFieldsValue({
@@ -373,9 +377,6 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
         death_queue_ttl_hours: deathQueueTTL.hours,
         death_queue_ttl_minutes: deathQueueTTL.minutes,
         death_queue_ttl_seconds: deathQueueTTL.seconds,
-        retry_mode_hours: retryMode.hours,
-        retry_mode_minutes: retryMode.minutes,
-        retry_mode_seconds: retryMode.seconds,
       });
     } else {
       setOriginalStatus('running');
@@ -420,15 +421,10 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
           values.death_queue_ttl_seconds
         ),
       },
-      retry_mode: formatTimeValue(
-        values.retry_mode_hours,
-        values.retry_mode_minutes,
-        values.retry_mode_seconds
-      ),
     };
 
     // Remove individual time fields
-    ['death_queue_ttl', 'retry_mode'].forEach(field => {
+    ['death_queue_ttl'].forEach(field => {
       delete formattedValues[`${field}_hours`];
       delete formattedValues[`${field}_minutes`];
       delete formattedValues[`${field}_seconds`];
@@ -475,39 +471,26 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
           >
             <Input disabled={!!editingConsumer} />
           </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="exchange_name"
-                label={<FormattedMessage id="table.exchangeName" />}
-                rules={[{ required: true, message: intl.formatMessage({ id: 'validation.exchangeName' }) }]}
-              >
-                <Input disabled={!!editingConsumer} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="vhost"
-                label={<FormattedMessage id="table.vhost" />}
-                rules={[{ required: true, message: intl.formatMessage({ id: 'validation.vhost' }) }]}
-              >
-                <Input disabled={!!editingConsumer} />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            name="exchange_name"
+            label={<FormattedMessage id="table.exchangeName" />}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'validation.exchangeName' }) }]}
+          >
+            <Input disabled={!!editingConsumer} />
+          </Form.Item>
+          <Form.Item
+            name="vhost"
+            label={<FormattedMessage id="table.vhost" />}
+            rules={[{ required: true, message: intl.formatMessage({ id: 'validation.vhost' }) }]}
+          >
+            <Input disabled={!!editingConsumer} />
+          </Form.Item>
           <Form.Item
             name="routing_key"
             label={<FormattedMessage id="table.routingKey" />}
             rules={[{ required: true, message: intl.formatMessage({ id: 'validation.routingKey' }) }]}
           >
             <Input disabled={!!editingConsumer} />
-          </Form.Item>
-          <Form.Item
-            name="callback"
-            label={<FormattedMessage id="table.callback" />}
-            rules={[{ required: true, message: intl.formatMessage({ id: 'validation.callback' }) }]}
-          >
-            <Input />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -517,33 +500,22 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
           >
             <Input disabled={!!editingConsumer} />
           </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name={['death_queue', 'bind_exchange']}
-                label={<FormattedMessage id="table.deathQueueBindExchange" />}
-              >
-                <Input disabled={!!editingConsumer} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name={['death_queue', 'bind_routing_key']}
-                label={<FormattedMessage id="table.deathQueueBindRoutingKey" />}
-              >
-                <Input disabled={!!editingConsumer} />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            name={['death_queue', 'bind_exchange']}
+            label={<FormattedMessage id="table.deathQueueBindExchange" />}
+          >
+            <Input disabled={!!editingConsumer} />
+          </Form.Item>
+          <Form.Item
+            name={['death_queue', 'bind_routing_key']}
+            label={<FormattedMessage id="table.deathQueueBindRoutingKey" />}
+          >
+            <Input disabled={!!editingConsumer} />
+          </Form.Item>
           <Form.Item
             label={<FormattedMessage id="table.deathQueueTTL" />}
           >
             <TimeInputs fieldName="death_queue_ttl" disabled={!!editingConsumer} />
-          </Form.Item>
-          <Form.Item
-            label={<FormattedMessage id="table.retryMode" />}
-          >
-            <TimeInputs fieldName="retry_mode" />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
@@ -569,7 +541,14 @@ const ConsumerForm = ({ form, onFinish, editingConsumer }) => {
           </Row>
         </Col>
       </Row>
-      <Form.Item style={{ textAlign: 'center' }}>
+      <Form.Item
+        name="callback"
+        label={<FormattedMessage id="table.callback" />}
+        rules={[{ required: true, message: intl.formatMessage({ id: 'validation.callback' }) }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
         <Button type="primary" htmlType="submit">
           <FormattedMessage id={editingConsumer ? "form.update" : "form.submit"} />
         </Button>

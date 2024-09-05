@@ -37,7 +37,7 @@ const Settings = () => {
     }))
 
     try {
-      const response = await fetch('/api/rabbitmq-config', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/rabbitmq-config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +64,7 @@ const Settings = () => {
     const values = form.getFieldsValue();
     setIsTestingConnection(true);
     try {
-      const response = await fetch('/api/test-rabbitmq-connection', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/test-rabbitmq-connection`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

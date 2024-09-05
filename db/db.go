@@ -3,16 +3,19 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"go-rabbitmq-consumers/MQServer"
 	"go-rabbitmq-consumers/logger"
+	"go-rabbitmq-consumers/models"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var DB *sql.DB
+
 func InitDB(dbPath string) (*sql.DB, error) {
 	const FUNCNAME = "InitDB"
 
-	db, err := sql.Open("sqlite3", dbPath)
+	var err error
+	DB, err = sql.Open("sqlite3", dbPath)
 	if err != nil {
 		logger.E(FUNCNAME, "failed to open SQLite database.", err.Error())
 		return nil, err
@@ -46,10 +49,19 @@ func InitDB(dbPath string) (*sql.DB, error) {
 			id INTEGER PRIMARY KEY,
 			url TEXT
 		);`,
+		`CREATE TABLE IF NOT EXISTS url_failed (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			request_url TEXT,
+			request_data TEXT,
+			response_code INTEGER,
+			response_content TEXT,
+			response_body TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);`,
 	}
 
 	for _, sqlStmt := range createTableSQLs {
-		_, err = db.Exec(sqlStmt)
+		_, err = DB.Exec(sqlStmt)
 		if err != nil {
 			logger.E(FUNCNAME, "failed to create table.", err.Error())
 			return nil, err
@@ -57,9 +69,9 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	}
 
 	// Insert default data if tables are empty
-	insertDefaultData(db)
+	insertDefaultData(DB)
 
-	return db, nil
+	return DB, nil
 }
 
 func insertDefaultData(db *sql.DB) {
@@ -94,11 +106,11 @@ func insertDefaultData(db *sql.DB) {
 	}
 }
 
-func FetchRabbitMQConfig(db *sql.DB) (*MQServer.RabbitMQConfig, error) {
+func FetchRabbitMQConfig(db *sql.DB) (*models.RabbitMQConfig, error) {
 	const FUNCNAME = "FetchRabbitMQConfig"
 
 	row := db.QueryRow("SELECT host, port, user, password FROM rabbitmq_config WHERE id = 1")
-	var rabbitMQConf MQServer.RabbitMQConfig
+	var rabbitMQConf models.RabbitMQConfig
 	err := row.Scan(&rabbitMQConf.Host, &rabbitMQConf.Port, &rabbitMQConf.User, &rabbitMQConf.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -112,7 +124,7 @@ func FetchRabbitMQConfig(db *sql.DB) (*MQServer.RabbitMQConfig, error) {
 	return &rabbitMQConf, nil
 }
 
-func FetchConsumersConfig(db *sql.DB) (*MQServer.RabbitMQConsumers, error) {
+func FetchConsumersConfig(db *sql.DB) (*models.RabbitMQConsumers, error) {
 	const FUNCNAME = "FetchConsumersConfig"
 
 	rows, err := db.Query("SELECT id, name, status, queue_name, exchange_name, routing_key, vhost, death_queue_name, death_queue_bind_exchange, death_queue_bind_routing_key, death_queue_ttl, callback, retry_mode, queue_count FROM consumers")
@@ -122,9 +134,9 @@ func FetchConsumersConfig(db *sql.DB) (*MQServer.RabbitMQConsumers, error) {
 	}
 	defer rows.Close()
 
-	consumersConf := &MQServer.RabbitMQConsumers{}
+	consumersConf := &models.RabbitMQConsumers{}
 	for rows.Next() {
-		var consumer MQServer.ConsumerParams
+		var consumer models.ConsumerParams
 		var deathQueueName, deathQueueBindExchange, deathQueueBindRoutingKey, retryMode sql.NullString
 		var deathQueueTTL string
 		err = rows.Scan(&consumer.Id, &consumer.Name, &consumer.Status, &consumer.QueueName, &consumer.ExchangeName, &consumer.RoutingKey, &consumer.VHost, &deathQueueName, &deathQueueBindExchange, &deathQueueBindRoutingKey, &deathQueueTTL, &consumer.Callback, &retryMode, &consumer.QueueCount)
@@ -161,7 +173,7 @@ func FetchRetryServiceURL(db *sql.DB) (string, error) {
 	return retryServiceURL, nil
 }
 
-func UpdateRabbitMQConfig(db *sql.DB, config MQServer.RabbitMQConfig) error {
+func UpdateRabbitMQConfig(db *sql.DB, config models.RabbitMQConfig) error {
 	const FUNCNAME = "UpdateRabbitMQConfig"
 
 	// Log the values of Host and User before updating
@@ -171,6 +183,22 @@ func UpdateRabbitMQConfig(db *sql.DB, config MQServer.RabbitMQConfig) error {
 		config.Host, config.Port, config.User, config.Password)
 	if err != nil {
 		logger.E(FUNCNAME, "failed to update RabbitMQ configuration.", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func SaveFailedRequest(requestURL, requestData, responseBody string, statusCode int) error {
+	const FUNCNAME = "SaveFailedRequest"
+
+	_, err := DB.Exec(`
+		INSERT INTO url_failed (request_url, request_data, response_code, response_content, response_body)
+		VALUES (?, ?, ?, ?, ?)
+	`, requestURL, requestData, statusCode, responseBody, responseBody)
+
+	if err != nil {
+		logger.E(FUNCNAME, "Failed to save failed request", err.Error())
 		return err
 	}
 

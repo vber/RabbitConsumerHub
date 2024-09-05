@@ -10,12 +10,14 @@ import (
 	"sync"
 	"time"
 
+	"go-rabbitmq-consumers/models" // Add this import
+
 	"github.com/gofiber/fiber/v2"
 )
 
 var (
-	RabbitMQConf             *MQServer.RabbitMQConfig
-	ConsumersConf            *MQServer.RabbitMQConsumers
+	RabbitMQConf             *models.RabbitMQConfig
+	ConsumersConf            *models.RabbitMQConsumers
 	ConsumersPool            map[string]*MQServer.RabbitMQServer
 	RetryServiceURL          string
 	ConsumerNotificationChan chan api.ConsumerNotification
@@ -63,7 +65,7 @@ func init() {
 	ConsumerNotificationChan = make(chan api.ConsumerNotification, 100)
 }
 
-func start_consumer(consumer_config MQServer.ConsumerParams) {
+func start_consumer(consumer_config models.ConsumerParams) {
 	const FUNCNAME = "start_consumer"
 	if RabbitMQConf == nil {
 		logger.E(FUNCNAME, "RabbitMQConf is nil")
@@ -97,7 +99,7 @@ func start_consumer(consumer_config MQServer.ConsumerParams) {
 		return
 	}
 
-	mq_server.DoError = func(queueData string, consumer *MQServer.ConsumerParams) {
+	mq_server.DoError = func(queueData string, consumer *models.ConsumerParams) {
 		r := retry.RetryURL{
 			QueueData: queueData,
 			ReqURL:    consumer.Callback,

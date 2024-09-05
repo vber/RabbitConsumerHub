@@ -3,8 +3,8 @@ package api
 import (
 	"database/sql"
 	"fmt"
-	"go-rabbitmq-consumers/MQServer"
 	"go-rabbitmq-consumers/logger"
+	"go-rabbitmq-consumers/models"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -13,7 +13,7 @@ import (
 )
 
 // UpdateRabbitMQConfig updates the RabbitMQ server configuration in the database
-func UpdateRabbitMQConfig(database *sql.DB, config *MQServer.RabbitMQConfig) error {
+func UpdateRabbitMQConfig(database *sql.DB, config *models.RabbitMQConfig) error {
 	const FUNCNAME = "UpdateRabbitMQConfig"
 
 	_, err := database.Exec(`UPDATE rabbitmq_config SET host = ?, port = ?, user = ?, password = ? WHERE id = 1`,
@@ -27,11 +27,11 @@ func UpdateRabbitMQConfig(database *sql.DB, config *MQServer.RabbitMQConfig) err
 }
 
 // FetchRabbitMQConfig fetches the RabbitMQ server configuration from the database
-func FetchRabbitMQConfig(database *sql.DB) (*MQServer.RabbitMQConfig, error) {
+func FetchRabbitMQConfig(database *sql.DB) (*models.RabbitMQConfig, error) {
 	const FUNCNAME = "FetchRabbitMQConfig"
 
 	row := database.QueryRow("SELECT host, port, user, password FROM rabbitmq_config WHERE id = 1")
-	var config MQServer.RabbitMQConfig
+	var config models.RabbitMQConfig
 	err := row.Scan(&config.Host, &config.Port, &config.User, &config.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -46,7 +46,7 @@ func FetchRabbitMQConfig(database *sql.DB) (*MQServer.RabbitMQConfig, error) {
 }
 
 // AddConsumer adds a new consumer to the database and returns the new ID
-func AddConsumer(database *sql.DB, consumer *MQServer.ConsumerParams) (int64, error) {
+func AddConsumer(database *sql.DB, consumer *models.ConsumerParams) (int64, error) {
 	const FUNCNAME = "AddConsumer"
 
 	result, err := database.Exec(`INSERT INTO consumers (name, status, queue_name, exchange_name, routing_key, death_queue_name, death_queue_bind_exchange, death_queue_bind_routing_key, death_queue_ttl, callback, retry_mode, queue_count, vhost) 
@@ -67,7 +67,7 @@ func AddConsumer(database *sql.DB, consumer *MQServer.ConsumerParams) (int64, er
 }
 
 // EditConsumer updates an existing consumer in the database
-func EditConsumer(database *sql.DB, consumer *MQServer.ConsumerParams) error {
+func EditConsumer(database *sql.DB, consumer *models.ConsumerParams) error {
 	const FUNCNAME = "EditConsumer"
 
 	_, err := database.Exec(`UPDATE consumers SET name = ?, status = ?, queue_name = ?, exchange_name = ?, routing_key = ?, death_queue_name = ?, death_queue_bind_exchange = ?, death_queue_bind_routing_key = ?, death_queue_ttl = ?, callback = ?, retry_mode = ?, queue_count = ?, vhost = ? 
@@ -146,7 +146,7 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 		if err := c.BodyParser(&config); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 		}
-		rabbitMQConfig := MQServer.RabbitMQConfig{
+		rabbitMQConfig := models.RabbitMQConfig{
 			Host:     config.Host,
 			Port:     config.Port,
 			User:     config.User,
@@ -166,9 +166,9 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 		}
 		defer rows.Close()
 
-		var consumers []MQServer.ConsumerParams
+		var consumers []models.ConsumerParams
 		for rows.Next() {
-			var consumer MQServer.ConsumerParams
+			var consumer models.ConsumerParams
 			err := rows.Scan(
 				&consumer.Id,
 				&consumer.Name,
@@ -199,7 +199,7 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 
 		// If no consumers were found, return an empty array instead of null
 		if len(consumers) == 0 {
-			return c.JSON([]MQServer.ConsumerParams{})
+			return c.JSON([]models.ConsumerParams{})
 		}
 
 		return c.JSON(consumers)
@@ -228,7 +228,7 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 		}
 
-		consumer := MQServer.ConsumerParams{
+		consumer := models.ConsumerParams{
 			Id:           c.Params("id"),
 			Name:         consumerData.Name,
 			Status:       consumerData.Status,
@@ -236,7 +236,7 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			ExchangeName: consumerData.ExchangeName,
 			RoutingKey:   consumerData.RoutingKey,
 			Callback:     consumerData.Callback,
-			DeathQueue: MQServer.DeathQueueInfo{
+			DeathQueue: models.DeathQueueInfo{
 				QueueName:      consumerData.DeathQueue.XDeathQueueName,
 				BindExchange:   consumerData.DeathQueue.BindExchange,
 				BindRoutingKey: consumerData.DeathQueue.BindRoutingKey,
@@ -313,14 +313,14 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 		}
 
-		consumer := MQServer.ConsumerParams{
+		consumer := models.ConsumerParams{
 			Name:         consumerData.Name,
 			Status:       consumerData.Status,
 			QueueName:    consumerData.QueueName,
 			ExchangeName: consumerData.ExchangeName,
 			RoutingKey:   consumerData.RoutingKey,
 			Callback:     consumerData.Callback,
-			DeathQueue: MQServer.DeathQueueInfo{
+			DeathQueue: models.DeathQueueInfo{
 				QueueName:      consumerData.DeathQueue.XDeathQueueName,
 				BindExchange:   consumerData.DeathQueue.BindExchange,
 				BindRoutingKey: consumerData.DeathQueue.BindRoutingKey,
@@ -383,11 +383,11 @@ func RegisterRoutes(app *fiber.App, db *sql.DB) {
 }
 
 // FetchConsumer fetches a single consumer from the database
-func FetchConsumer(database *sql.DB, consumerID string) (*MQServer.ConsumerParams, error) {
+func FetchConsumer(database *sql.DB, consumerID string) (*models.ConsumerParams, error) {
 	const FUNCNAME = "FetchConsumer"
 
 	row := database.QueryRow("SELECT * FROM consumers WHERE id = ?", consumerID)
-	var consumer MQServer.ConsumerParams
+	var consumer models.ConsumerParams
 	err := row.Scan(
 		&consumer.Id,
 		&consumer.Name,
@@ -418,8 +418,8 @@ func FetchConsumer(database *sql.DB, consumerID string) (*MQServer.ConsumerParam
 
 // ConsumerNotification is exported
 type ConsumerNotification struct {
-	Type     string                  `json:"type"`
-	Consumer MQServer.ConsumerParams `json:"consumer"`
+	Type     string                `json:"type"`
+	Consumer models.ConsumerParams `json:"consumer"`
 }
 
 var ConsumerNotificationChan chan ConsumerNotification
